@@ -35,10 +35,10 @@ void loop() {
 }
 
 void handleString(){
-    SerialBT.write(arrayOK[0]);
-    SerialBT.write(arrayOK[1]);
-    SerialBT.write(arrayOK[2]);
-    SerialBT.write(arrayOK[3]);
+    //SerialBT.write(arrayOK[0]);
+    //SerialBT.write(arrayOK[1]);
+    //SerialBT.write(arrayOK[2]);
+    //SerialBT.write(arrayOK[3]);
     LastDataString = BTdataString;
     Serial.print("Got string: ");
     Serial.println(BTdataString);
