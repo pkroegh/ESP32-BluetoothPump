@@ -1,54 +1,169 @@
+//**************************************************************************************************************
+//Librarys
+//--------------------------------------------------------------------------------------------------------------
 #include "BluetoothSerial.h";
-
-BluetoothSerial SerialBT;
-
+//**************************************************************************************************************
+//Bluetooth serial variables
+//--------------------------------------------------------------------------------------------------------------
+String deviceName = "BluetoothPumpESP"; //Defines the name of the device
 char arrayOK[5] = {"OK\r\n"};
+//**************************************************************************************************************
+//Treatment variables
+//--------------------------------------------------------------------------------------------------------------
+float baseBasal;
+bool tempActive = false; 
+float tempBasal;
+uint8_t tempDuration;
 
-uint8_t BTdata;
-uint8_t BTindex = 0;
+#define vInt 0
+#define vFloat 1
 
-String BTdataString;
-String LastDataString;
 
-void setup() {
-    Serial.begin(115200);
-    SerialBT.begin("ESP32_TEST");
+//**************************************************************************************************************
+//DEBUG variables
+//--------------------------------------------------------------------------------------------------------------
+#define debug_serial
+#define ignore_confirm
+#ifdef debug_serial
+    #define print_setup
+    #define print_bluetooth
+#endif
+//**************************************************************************************************************
+//Library instance initialization
+//--------------------------------------------------------------------------------------------------------------
+BluetoothSerial SerialBT;
+//**************************************************************************************************************
+//Setup bluetooth serial
+void setupBluetooth(){
+    SerialBT.begin(deviceName); //Starts bluetooth serial
     delay(200); // wait for voltage stabilize
+    #ifdef print_bluetooth
+        Serial.print("BluetoothSerial started with device name: ");
+        Serial.println(deviceName);
+    #endif
+}
+//**************************************************************************************************************
+//Read from bleutooth serial and add to buffer
+void readBluetooth(String dataString = ""){
+    boolean dataAvaliable = false;
+    uint8_t btData;
+    while(SerialBT.available()){ //Run when data in buffer
+        dataAvaliable = true;
+        btData = SerialBT.read(); //Add data to variable
+        if(btData == 10){ //New line marks end of string
+            processBluetooth(dataString); //Process it string
+            return; //Bail out of while loop
+        }
+        dataString.concat(ASCIIintToChar(btData)); //Add data to string
+    }
+    if(dataAvaliable && btData != 10){ //String not fully recieved
+        delay(10); //Wait a short time
+        readBluetooth(dataString); //Return to bluetooth reader
+    }
+}
+//**************************************************************************************************************
+//Process string
+void processBluetooth(String command){
+    #ifndef ignore_confirm
+        confirmRecieved();
+    #endif
+    #ifdef print_bluetooth
+        Serial.print("Got string: ");
+        Serial.println(command);
+    #endif
+    if(command.indexOf("getBaseBasalRate") >= 0){
+        getBaseBasalRate(command);
+    }else if(command.indexOf("setTempBasalAbsolute") >= 0){
+        setTempBasalAbsolute(command);
+    }else if(command.indexOf("cancelTempBasal") >= 0){
+        cancelTempBasal();
+    }
+}
+//**************************************************************************************************************
+//Confirm message
+#ifndef ignore_confirm
+    void confirmRecieved(){
+        SerialBT.write(arrayOK[0]);
+        SerialBT.write(arrayOK[1]);
+        SerialBT.write(arrayOK[2]);
+        SerialBT.write(arrayOK[3]);
+    }
+#endif
+//**************************************************************************************************************
+//Isolate value from string
+float cutVariableFromString(String inputString, String leadingString, int sizeOfVariable, int type){
+    //Example string: "getBasalRate rate: 45 duration: 30"
+    //Isolate 45
+    inputString.remove(0,inputString.indexOf(leadingString)+leadingString.length());
+    //Example string: "45 duration: 30"
+    if(inputString.length() != sizeOfVariable){
+        inputString.remove(sizeOfVariable,inputString.length());
+    }
+    if (type == 0){
+        return inputString.toInt(); 
+    } else if (type == 1){
+        return inputString.toFloat(); 
+    }
+} 
+//**************************************************************************************************************
+//Isolate base basal rate
+void getBaseBasalRate(String command){
+    float newBaseBasal = cutVariableFromString(command, "rate: ", 3, vFloat);
+    Serial.print("Basal rate isolated to: ");
+    Serial.println(newBaseBasal);
+}
+//**************************************************************************************************************
+//Isolate temp basal rate and duration
+void setTempBasalAbsolute(String command){
+    tempBasal = cutVariableFromString(command, "Basal: ", 3, vFloat);
+    tempDuration = cutVariableFromString(command, "tion: ", 2, vInt);
+    Serial.print("Temp basal is: ");
+    Serial.print(tempBasal);
+    Serial.print(" - With duration: ");
+    Serial.println(tempDuration);
+    if(!tempActive){
+        //If temp is not active
+        /*
+        *
+        * 
+        * 
+        * Add code to set temp
+        * 
+        * 
+        * 
+        */
+    }
+}
+//**************************************************************************************************************
+//Isolate temp basal rate and duration
+void cancelTempBasal(){
+    if(tempActive){
+        //If temp is active, cancel
+        /*
+        *
+        * 
+        * 
+        * Add code to cancel temp
+        * 
+        * 
+        * 
+        */
+    }
 }
 
+//**************************************************************************************************************
+//Setup
+void setup() {
+    #ifdef debug_serial
+        Serial.begin(115200);
+    #endif
+    setupBluetooth();
+}
+//**************************************************************************************************************
+//Main loop
 void loop() {
-    if (SerialBT.available()){ // check if anything in UART buffer
-        BTdata = SerialBT.read();
-        if(BTdata == 10){ // New line - End of string
-            BTindex = 0;
-            BTdata = 0;
-            handleString();
-            return;
-        }
-        if(BTindex == 0){
-            BTdataString = ASCIIintToChar(BTdata);
-        }else{
-            BTdataString.concat(ASCIIintToChar(BTdata));
-        }
-        BTindex++;
-    }
+    readBluetooth();
 }
-
-void handleString(){
-    //SerialBT.write(arrayOK[0]);
-    //SerialBT.write(arrayOK[1]);
-    //SerialBT.write(arrayOK[2]);
-    //SerialBT.write(arrayOK[3]);
-    LastDataString = BTdataString;
-    Serial.print("Got string: ");
-    Serial.println(BTdataString);
-    if(BTdataString.indexOf("Hello") >= 0){
-        Serial.println("Got hello string...");
-    }else if(BTdataString.indexOf("something") >= 0){
-
-    }
-}
-
 //**************************************************************************************************************
 //Converts a int value to a char
 char ASCIIintToChar(uint8_t input){
