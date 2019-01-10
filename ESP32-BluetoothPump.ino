@@ -167,7 +167,6 @@ void calculateTempBasal(){
     bolusCount = deltaBasal / minBolus;
     bolusTimeInterval = 60 / bolusCount + 0.5;
     if(bolusTimeInterval < minTimeInterval){
-        
         bolusAmountScaler = (float)bolusCount / (60 / (float)minTimeInterval) + 0.5;
         bolusAmount = minBolus * bolusAmountScaler;
         bolusCount = deltaBasal / bolusAmount;
@@ -195,8 +194,13 @@ void debug_printCalculation(){
 //**************************************************************************************************************
 //Deliver bolus treatment
 void deliverBolus(){
-    Serial.print("Delivering bolus: ");
-    Serial.println(bolusAmount);
+    Serial.print("Delivering ");
+    Serial.print(bolusAmount);
+    Serial.print(" U of bolus. Count ");
+    Serial.print(bolusDelivered);
+    Serial.print(" of ");
+    Serial.print(bolusCount);
+    Serial.println(".");
     setACT();
     for (uint8_t i = 0; i < bolusAmountScaler; i++) {
         setB();
@@ -265,14 +269,14 @@ void changePumpStatus() {
 //**************************************************************************************************************
 //Handle bolus delivery
 void manageTreatment() {
-    if ((millis() - prevTreatmentTime >= bolusTimeInterval * min_to_ms) && bolusDelivered <= bolusCount) {
+    if ((millis() - prevTreatmentTime >= bolusTimeInterval * min_to_ms) && bolusDelivered < bolusCount) {
         deliverBolus();
     }
 }
 //**************************************************************************************************************
 //Handle continous pump action
 void managePump() {
-    if (tempActive && millis() - firstTreatmentTime >= tempDuration * min_to_ms){
+    if (tempActive && (millis() - firstTreatmentTime >= tempDuration * min_to_ms)){
         tempActive = false;
         Serial.println("Temp over - Resetting to default");
         resetToDefault(); //Cancel temp and return pump to default state
