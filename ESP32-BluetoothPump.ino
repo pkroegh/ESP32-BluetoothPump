@@ -232,13 +232,13 @@ void setS(){
 //**************************************************************************************************************
 //Return to basal rate
 void cancelTempBasal() {
+    tempActive = false;
     resetToDefault();
 }
 //**************************************************************************************************************
 //Stop temp and make sure pump is on
 void resetToDefault() {
     setPumpStatus(pON);
-    tempActive = false;
 }
 //**************************************************************************************************************
 //Change status of pump - On and Off
@@ -272,11 +272,12 @@ void manageTreatment() {
 //**************************************************************************************************************
 //Handle continous pump action
 void managePump() {
-    if (tempActive) {
-        manageTreatment();
-    } else if (millis() - firstTreatmentTime >= tempDuration * min_to_ms){
+    if (tempActive && millis() - firstTreatmentTime >= tempDuration * min_to_ms){
+        tempActive = false;
         Serial.println("Temp over - Resetting to default");
         resetToDefault(); //Cancel temp and return pump to default state
+    } else if (tempActive){
+        manageTreatment();
     }
 }
 //**************************************************************************************************************
