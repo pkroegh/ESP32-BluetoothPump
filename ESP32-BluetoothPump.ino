@@ -1,4 +1,5 @@
 //Librarys
+//hist: 20190208 lasse
 //--------------------------------------------------------------------------------------------------------------
 #include <math.h>
 #include <BluetoothSerial.h>
@@ -17,8 +18,8 @@ bool pumpActive = true;
 bool tempActive = false;
 
 const float minBolus = 0.1; //Minimum bolus delivery possible
-const float maxDeltaBasal = 3.0; //Maximum delta basal rate.
-const uint8_t minTimeInterval = 5; //Minimum time interval bewteen bolus delivery
+const float maxDeltaBasal = 5.0; //Maximum delta basal rate. --####Rettet####
+const uint8_t minTimeInterval = 4; //Minimum time interval bewteen bolus delivery --####Rettet####
 
 float deltaBasal; //Difference between baseBasal and tempBasal
 float bolusAmount; //Amount of U to deliver
@@ -87,16 +88,20 @@ void processBluetooth(String command) {
     #ifndef ignore_confirm
         confirmRecieved();
     #endif
+    /*
     #ifdef print_bluetooth
         Serial.print("Got string: ");
         Serial.println(command);
     #endif
+    */
     if (command.indexOf("getBaseBasalRate") >= 0) {
         baseBasalRate(command);
     } else if (command.indexOf("setTempBasalAbsolute") >= 0) {
         newTempBasal(command);
     } else if (command.indexOf("cancelTempBasal") >= 0) {
         cancelTempBasal();
+    } else if (command.indexOf("Ping") >= 0 ) {
+        Serial.println("Got Ping from phone");
     }
 }
 //**************************************************************************************************************
@@ -129,11 +134,15 @@ float cutVariableFromString(String inputString, String leadingString, int sizeOf
 //Isolate base basal rate
 void baseBasalRate(String command) {
     float newBaseBasal = cutVariableFromString(command, "rate: ", 4, vFloat);
-    Serial.print("Basal rate isolated to: ");
-    Serial.println(newBaseBasal);
+    //Serial.print("Basal rate isolated to: ");
+    //Serial.println(newBaseBasal);
     if (newBaseBasal != baseBasal) {
+        Serial.print("New baseBasal rate set to ");
+        Serial.print(newBaseBasal);
+        Serial.print(" from ");
+        Serial.print(baseBasal);
+        Serial.println(".");
         baseBasal = newBaseBasal;
-        Serial.println("New baseBasal rate");
     }
 }
 //**************************************************************************************************************
@@ -142,7 +151,7 @@ void newTempBasal(String command) {
     tempBasal = cutVariableFromString(command, "Basal: ", 4, vFloat);
     tempDuration = cutVariableFromString(command, "tion: ", 3, vInt);
     #ifdef debug_serial
-        Serial.println("Temporary basal rate update recieved;");
+        Serial.println("Temporary basal rate update recieved!");
         Serial.print("TempBasal to be set: ");
         Serial.print(tempBasal);
         Serial.print("U/h for tempDuration: ");
@@ -167,7 +176,9 @@ void calculateTempBasal(){
     bolusCount = deltaBasal / minBolus;
     bolusTimeInterval = 60 / bolusCount + 0.5;
     if(bolusTimeInterval < minTimeInterval){
-        bolusAmountScaler = (float)bolusCount / (60 / (float)minTimeInterval) + 0.5;
+        Serial.println("bolusTimeInterval < minTimeInterval! Recalculating!");
+        Serial.println("Using larger minBolus");
+        bolusAmountScaler = ((float)bolusCount / (60 / (float)minTimeInterval)) + 0.5;
         bolusAmount = minBolus * bolusAmountScaler;
         bolusCount = deltaBasal / bolusAmount;
         bolusTimeInterval = 60 / bolusCount;
@@ -197,15 +208,16 @@ void deliverBolus(){
     Serial.print("Delivering ");
     Serial.print(bolusAmount);
     Serial.print(" U of bolus. Count ");
-    Serial.print(bolusDelivered);
+    Serial.print(bolusDelivered+1);
     Serial.print(" of ");
     Serial.print(bolusCount);
     Serial.println(".");
     setACT();
-    for (uint8_t i = 0; i < bolusAmountScaler; i++) {
+    for (uint8_t i = 0; i < (bolusAmountScaler); i++) {         //PKT 1001 tilføjet+1 da den ikke vil tænde diode hvis det er 0,1 men  godt hvis det er 0,2 - fjernet igen
         setB();
     }
     setACT();
+    setACT();       //PKT 1701 tilføjet ser ud som om act skal sætte 2 gang på fjernbetjening
     bolusDelivered++;
     prevTreatmentTime = millis();
 }
@@ -213,25 +225,25 @@ void deliverBolus(){
 //Set ACT
 void setACT(){
     digitalWrite(ACT, HIGH);      // sets the ACT digital pin 18 on
-    delay(2000);                  // waits for 2 second
+    delay(3000);                  // waits for 2 second
     digitalWrite(ACT, LOW);       // sets the ACT digital pin 18 OFF
-    delay(2000);                  // waits for 2 second
+    delay(3000);                  // waits for 2 second
 }
 //**************************************************************************************************************
 //Set B
 void setB(){
     digitalWrite(B, HIGH);       // sets the B digital pin 19 on   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(1000);                  // waits for 2 second            ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
+    delay(3000);                  // waits for 2 second            ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------PKT 1001  rettet til 2 istedet for 1 
     digitalWrite(B, LOW);       // sets the B digital pin 19 OFF   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(1000);    
+    delay(3000);                // PKT 1001  rettet til 2 istedet for 1  
 }
 //**************************************************************************************************************
 //Set S
 void setS(){
     digitalWrite(S, HIGH);       // sets the S digital pin 17 on
-    delay(5000);                  // waits for 2 second1  //// test med 5000 pkt 2112
+    delay(3000);                  // waits for 2 second1  //// test med 5000 pkt 2112       PKT 1001  rettet til 2 istedet for 5 
     digitalWrite(S, LOW);       // sets the S digital pin 17 on
-    delay(1000);                  // waits for 2 second
+    delay(3000);                  //  PKT 1001  rettet til 2 istedet for 1     waits for 2 second      
 }
 //**************************************************************************************************************
 //Return to basal rate
