@@ -97,7 +97,7 @@ void processBluetooth(String command) {
                 newTempBasal(command);
             }
         } else if (command.indexOf("wake") >= 0) {
-            //
+            updateWakeTimer(command);
         } else if (command.indexOf("slub") >= 0) {
             //
         }
@@ -337,7 +337,13 @@ void
 
 */
 
+//**************************************************************************************************************
+//Update timer
+void updateWakeTimer(String command){
+    uint8_t = wakeTimeMin = cutVariableFromString(command, "wake=", 1, vInt);
+    
 
+}
 
 
 //**************************************************************************************************************
