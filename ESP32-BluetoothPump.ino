@@ -242,54 +242,6 @@ void resetToDefault() {
     */
 }
 //**************************************************************************************************************
-//Change status of pump - On and Off
-/*
-void setPumpStatus(uint8_t state) { //If state is ON -> Turn on the pump. If state is OFF -> Turn off the pump
-    if (!pumpActive && state == pON) { //If we want to start the pump, and the pump is off, start it with base basal rate
-        Serial.println("Starting pump");
-        changePumpStatus();
-        pumpActive = true;
-    } else if (pumpActive && state == pOFF) { //If we want to turn off the pump, and the pump is on, turn off the pump.
-        Serial.println("Stopping pump");
-        changePumpStatus();
-        pumpActive = false;
-    }
-}
-*/
-//**************************************************************************************************************
-//Turn off the pump
-/*
-void changePumpStatus() {
-    setACT();
-    for (uint8_t i = 0; i < 2; i++) {// Loop to do "something" n times
-        setS();
-    }
-    setACT();
-}
-*/
-//**************************************************************************************************************
-//Handle bolus delivery
-/*
-void manageTreatment() {
-    if ((millis() - prevTreatmentTime >= bolusTimeInterval * min_to_ms) && bolusDelivered < bolusCount) {
-        deliverBolus();
-    }
-}
-*/
-//**************************************************************************************************************
-//Handle continous pump action
-/*
-void managePump() {
-    if (tempActive && (millis() - firstTreatmentTime >= tempDuration * min_to_ms)){
-        tempActive = false;
-        Serial.println("Temp over - Resetting to default");
-        resetToDefault(); //Cancel temp and return pump to default state
-    } else if (tempActive){
-        manageTreatment();
-    }
-}
-*/
-//**************************************************************************************************************
 void setupHardware(){
     pinMode(18, OUTPUT);
     pinMode(B, OUTPUT);
