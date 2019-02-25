@@ -11,13 +11,16 @@ Once the projekt is open, select ```Run > Run``` and select "app" in the prompt.
 
 ### Connecting the ESP32 to the Medtronic MMT-554 pump
 **Setting up Arduino and ESP**
+
 If your have not already install the Arduino IDE, do this from: https://www.arduino.cc/en/main/software
 Then add the ESP32 to your Arduino IDE installation, following this guide: https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md
 **Compiling the software and uploading it to the ESP**
+
 First, connect the ESP32 to your computer.
 Clone this repository and open the ```.ino``` file. Select the ESP32 board in the ```Tools > Board```. Select the correct USB port ```Tools > Port```. Finally, press the upload button or press ```Ctrl+U```.
 
 **Setting up the physical interface**
+
 Instruction will follow shortly, check back in a week.
 
 ## Modified AndroidAPS
