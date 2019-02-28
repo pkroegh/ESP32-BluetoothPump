@@ -6,7 +6,7 @@ Source code for an ESP32 intended to be connected to a Medtronic MMT-554 pump, a
 ### Downloading and installing the modificed AndroidAPS app
 Download and install [Android Studio](https://developer.android.com/studio)
 
-Clone modified version of AndroidAPS, by selecting "Check out projekt from Version Control". In the promt input the GitHub clone path for the modified AndroidAPS, https://github.com/pkroegh/AndroidAPS-Bluetooth.git.
+Clone modified version of AndroidAPS, by selecting ```Check out projekt from Version Control```. In the promt input the GitHub clone path for the modified AndroidAPS, https://github.com/pkroegh/AndroidAPS-Bluetooth.git.
 
 Connect your Android device to your computer.
 Once the projekt is open, select ```Run > Run``` and select "app" in the prompt. Select your Android device when prompted. This will compile the app and install it on your Android device.
