@@ -4,7 +4,7 @@ Source code for an ESP32 intended to be connected to a Medtronic MMT-554 pump, a
 ## Setup
 
 ### Downloading and installing the modificed AndroidAPS app
-Download and install Android Studio, found at: https://developer.android.com/studio
+Download and install [Android Studio](https://developer.android.com/studio)
 
 Clone modified version of AndroidAPS, by selecting "Check out projekt from Version Control". In the promt input the GitHub clone path for the modified AndroidAPS, https://github.com/pkroegh/AndroidAPS-Bluetooth.git.
 
@@ -14,9 +14,9 @@ Once the projekt is open, select ```Run > Run``` and select "app" in the prompt.
 ### Connecting the ESP32 to the Medtronic MMT-554 pump
 **Setting up Arduino and ESP**
 
-If your have not already install the Arduino IDE, do this from: https://www.arduino.cc/en/main/software
+If your have not already install [Arduino IDE](https://www.arduino.cc/en/main/software).
 
-Then add the ESP32 to your Arduino IDE installation, following this guide: https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md
+Then add the ESP32 to your Arduino IDE installation, following this [guide](https://github.com/espressif/arduino-esp32/blob/master/docs/arduino-ide/boards_manager.md) from Espressif.
 
 **Compiling the software and uploading it to the ESP**
 
@@ -28,9 +28,9 @@ Clone this repository and open the ```.ino``` file. Select the ESP32 board in th
 Instruction will follow shortly, check back in a week.
 
 ## Modified AndroidAPS
-The modified version of AndroidAPS, ment to be pared with the ESP32: https://github.com/pkroegh/AndroidAPS-Bluetooth
+The [modified version of AndroidAPS](https://github.com/pkroegh/AndroidAPS-Bluetooth) , ment to be pared with the ESP32.
 
 ## Original AndroidAPS 
-The original AndroidAPS by MilosKozak can be found at: https://github.com/MilosKozak/AndroidAPS 
+The  [original AndroidAPS](https://github.com/MilosKozak/AndroidAPS) by MilosKozak.
 
-The documentation for the AndroidAPS app can be found at: https://androidaps.readthedocs.io/en/latest/EN/ 
+The [documentation](https://androidaps.readthedocs.io/en/latest/EN/) for AndroidAPS. 
