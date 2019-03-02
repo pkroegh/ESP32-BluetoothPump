@@ -6,30 +6,36 @@
 //**************************************************************************************************************
 //Bluetooth serial variables
 //--------------------------------------------------------------------------------------------------------------
-String deviceName = "BluetoothPumpESP"; //Defines the name of the device
-char arrayOK[5] = {"OK\r\n"};
+const String deviceName = "BluetoothPumpESP"; //Defines the name of the device
+//const String deviceKey = "DSjk4398@jkf";
 //***************************************************************************************************************
 //Treatment variables
 //--------------------------------------------------------------------------------------------------------------
-float baseBasal; //Pump base basal rate, in U/h
-float tempBasal; //Temp basal rate, in U/h
-uint8_t tempDuration; //Duration of temp basal, in min.
-bool pumpActive = true;
-bool tempActive = false;
+#define M_TO_uS_FACTOR 60000000
+#define uS_TO_S_FACTOR 1000000
 
-const float minBolus = 0.1; //Minimum bolus delivery possible
-const float maxDeltaBasal = 5.0; //Maximum delta basal rate. --####Rettet####
-const uint8_t minTimeInterval = 4; //Minimum time interval bewteen bolus delivery --####Rettet####
+RTC_DATA_ATTR float baseBasal; //Pump base basal rate, in U/h
+RTC_DATA_ATTR float tempBasal; //Temp basal rate, in U/h
+RTC_DATA_ATTR uint8_t tempDuration; //Duration of temp basal, in min.
+RTC_DATA_ATTR uint8_t tempStart; //Duration of temp basal, in min.
+//bool pumpActive = true;
+RTC_DATA_ATTR bool tempActive = false;
 
-float deltaBasal; //Difference between baseBasal and tempBasal
-float bolusAmount; //Amount of U to deliver
-uint8_t bolusAmountScaler;
-uint8_t bolusCount; //Number of times to deliver minBolus
-uint8_t bolusTimeInterval; //Time between each minBolus, in minuts.
-uint8_t bolusDelivered; //Tracker for amount of times bolus has been delivered
+uint8_t wakeInterval = 1;
 
-unsigned long firstTreatmentTime; //Time of first bolus delivery
-unsigned long prevTreatmentTime; //Previous treatment time, in milliseconds.
+//const float minBolus = 0.1; //Minimum bolus delivery possible
+//const float maxDeltaBasal = 5.0; //Maximum delta basal rate. --####Rettet####
+//const uint8_t minTimeInterval = 4; //Minimum time interval bewteen bolus delivery --####Rettet####
+
+//float deltaBasal; //Difference between baseBasal and tempBasal
+//float bolusAmount; //Amount of U to deliver
+//uint8_t bolusAmountScaler;
+//uint8_t bolusCount; //Number of times to deliver minBolus
+//uint8_t bolusTimeInterval; //Time between each minBolus, in minuts.
+//uint8_t bolusDelivered; //Tracker for amount of times bolus has been delivered
+
+//unsigned long firstTreatmentTime; //Time of first bolus delivery
+//unsigned long prevTreatmentTime; //Previous treatment time, in milliseconds.
 //****PKT 1512**********************************************************************************************************
 const int B = 19; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
 const int S = 17; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
@@ -49,6 +55,28 @@ const int ACT = 16; // Could be different depending on the dev board. I used the
 #define print_setup
 #define print_bluetooth
 #endif
+
+#define handshakeInterval 1000 //Milliseconds between handshake attempt
+bool handshakingCompleted = false;
+uint64_t lastMessageTime;
+#define resetTimeScaler 2
+uint64_t wakeTime;
+
+uint64_t currentMillis;
+
+#define ESP_battery "e="
+#define ESP_wake "w="
+#define ESP_base "b="
+#define ESP_temp "t="
+#define ESP_sleep "s"
+
+#define APS_ping "P"
+#define APS_base "B="
+#define APS_temp "T="
+#define APS_wake "W="
+#define APS_sleep "S"
+
+#define comm_variable1 ":0="
 //**************************************************************************************************************
 //Library instance initialization
 //--------------------------------------------------------------------------------------------------------------
@@ -71,13 +99,13 @@ void readBluetooth(String dataString = "") {
     while (SerialBT.available()) { //Run when data in buffer
         dataAvaliable = true;
         btData = SerialBT.read(); //Add data to variable
-        if (btData == 10) { //New line marks end of string
-        processBluetooth(dataString); //Process it string
-        return; //Bail out of while loop
+        if (btData == 13) { //New line marks end of string
+            processBluetooth(dataString); //Process it string
+            return; //Bail out of while loop
         }
         dataString.concat(ASCIIintToChar(btData)); //Add data to string
     }
-    if (dataAvaliable && btData != 10) { //String not fully recieved
+    if (dataAvaliable && btData != 13) { //String not fully recieved
         delay(10); //Wait a short time
         readBluetooth(dataString); //Return to bluetooth reader
     }
@@ -85,35 +113,33 @@ void readBluetooth(String dataString = "") {
 //**************************************************************************************************************
 //Process string
 void processBluetooth(String command) {
-    #ifndef ignore_confirm
-        confirmRecieved();
-    #endif
-    /*
-    #ifdef print_bluetooth
-        Serial.print("Got string: ");
+    #ifdef debug_serial
+        Serial.print("Got BT string: ");
         Serial.println(command);
     #endif
-    */
-    if (command.indexOf("getBaseBasalRate") >= 0) {
+    if (command.indexOf(APS_ping) >= 0) {
+        handshakingCompleted = true;
+        sendBluetooth("e=100");
+        #ifdef debug_serial
+            Serial.println("Done handshaking");
+        #endif
+    } else if (command.indexOf(APS_base) >= 0) {
+        #ifdef debug_serial
+            Serial.println("Base basal rate command");
+        #endif
         baseBasalRate(command);
-    } else if (command.indexOf("setTempBasalAbsolute") >= 0) {
-        newTempBasal(command);
-    } else if (command.indexOf("cancelTempBasal") >= 0) {
-        cancelTempBasal();
-    } else if (command.indexOf("Ping") >= 0 ) {
-        Serial.println("Got Ping from phone");
+    } else if (command.indexOf(APS_temp) >= 0) {
+        if (command.indexOf("null") >= 0) {
+            cancelTempBasal();
+        } else {
+            newTempBasal(command);
+        }
+    } else if (command.indexOf(APS_wake) >= 0) {
+        updateWakeTimer(command);
+    } else if (command.indexOf(APS_sleep) >= 0) {
+        sleepNow();
     }
 }
-//**************************************************************************************************************
-//Confirm message
-#ifndef ignore_confirm
-    void confirmRecieved() {
-        SerialBT.write(arrayOK[0]);
-        SerialBT.write(arrayOK[1]);
-        SerialBT.write(arrayOK[2]);
-        SerialBT.write(arrayOK[3]);
-    }
-#endif
 //**************************************************************************************************************
 //Isolate value from string
 float cutVariableFromString(String inputString, String leadingString, int sizeOfVariable, int type) {
@@ -133,93 +159,49 @@ float cutVariableFromString(String inputString, String leadingString, int sizeOf
 //**************************************************************************************************************
 //Isolate base basal rate
 void baseBasalRate(String command) {
-    float newBaseBasal = cutVariableFromString(command, "rate: ", 4, vFloat);
-    //Serial.print("Basal rate isolated to: ");
-    //Serial.println(newBaseBasal);
-    if (newBaseBasal != baseBasal) {
-        Serial.print("New baseBasal rate set to ");
-        Serial.print(newBaseBasal);
-        Serial.print(" from ");
-        Serial.print(baseBasal);
-        Serial.println(".");
-        baseBasal = newBaseBasal;
+    if (command.length() > 2) {
+        float newBaseBasal = cutVariableFromString(command, APS_base, 4, vFloat);
+        if (newBaseBasal != baseBasal) {
+            #ifdef debug_serial
+                Serial.print("New baseBasal rate set to ");
+                Serial.print(newBaseBasal);
+                Serial.print(" from ");
+                Serial.print(baseBasal);
+                Serial.println(".");
+            #endif
+            baseBasal = newBaseBasal;
+
+
+        }
     }
+    command = ESP_base;
+    command.concat(baseBasal);
+    sendBluetooth(command);
 }
 //**************************************************************************************************************
 //Isolate temp basal rate and duration
 void newTempBasal(String command) {
-    tempBasal = cutVariableFromString(command, "Basal: ", 4, vFloat);
-    tempDuration = cutVariableFromString(command, "tion: ", 3, vInt);
-    #ifdef debug_serial
-        Serial.println("Temporary basal rate update recieved!");
-        Serial.print("TempBasal to be set: ");
-        Serial.print(tempBasal);
-        Serial.print("U/h for tempDuration: ");
-        Serial.print(tempDuration);
-        Serial.println(" min");
-    #endif
-    if (tempBasal > baseBasal) {
-        setPumpStatus(pON);
-        calculateTempBasal();
-        deliverBolus();
-    } else if (tempBasal < baseBasal) {
-        setPumpStatus(pOFF);
+    if (command.length() > 2) {
+        tempBasal = cutVariableFromString(command, APS_temp, 4, vFloat);
+        tempDuration = cutVariableFromString(command, comm_variable1, 3, vInt);
+        #ifdef debug_serial
+            Serial.println("Temporary basal rate update recieved!");
+            Serial.print("TempBasal to be set: ");
+            Serial.print(tempBasal);
+            Serial.print("U/h for tempDuration: ");
+            Serial.print(tempDuration);
+            Serial.println(" min");
+        #endif
     }
-}
-//**************************************************************************************************************
-//Calculate bolusAmount, bolusCount and bolusTimeInterval
-void calculateTempBasal(){
-    deltaBasal = tempBasal - baseBasal; //Calcualte difference in basal rate
-    if (deltaBasal > maxDeltaBasal) { //Make sure that deltaBasal does not become larger then maxDeltaBasal
-        deltaBasal = maxDeltaBasal;
-    }
-    bolusCount = deltaBasal / minBolus;
-    bolusTimeInterval = 60 / bolusCount + 0.5;
-    if(bolusTimeInterval < minTimeInterval){
-        Serial.println("bolusTimeInterval < minTimeInterval! Recalculating!");
-        Serial.println("Using larger minBolus");
-        bolusAmountScaler = ((float)bolusCount / (60 / (float)minTimeInterval)) + 0.5;
-        bolusAmount = minBolus * bolusAmountScaler;
-        bolusCount = deltaBasal / bolusAmount;
-        bolusTimeInterval = 60 / bolusCount;
+    command = ESP_temp;
+    if (!tempActive) {
+        command.concat("null");
     } else {
-        bolusAmount = minBolus;
+        command.concat(tempBasal);
+        command.concat(comm_variable1);
+        command.concat(tempDuration);
     }
-    debug_printCalculation();
-    bolusDelivered = 0;
-    tempActive = true;
-    firstTreatmentTime = millis();
-}
-//**************************************************************************************************************
-//Print calculation from calculateTempBasal
-void debug_printCalculation(){
-    Serial.print("deltaBasal: ");
-    Serial.println(deltaBasal);
-    Serial.print("bolusAmount: ");
-    Serial.println(bolusAmount);
-    Serial.print("bolusCount: ");
-    Serial.println(bolusCount);
-    Serial.print("bolusTimeInterval: ");
-    Serial.println(bolusTimeInterval);
-}
-//**************************************************************************************************************
-//Deliver bolus treatment
-void deliverBolus(){
-    Serial.print("Delivering ");
-    Serial.print(bolusAmount);
-    Serial.print(" U of bolus. Count ");
-    Serial.print(bolusDelivered+1);
-    Serial.print(" of ");
-    Serial.print(bolusCount);
-    Serial.println(".");
-    setACT();
-    for (uint8_t i = 0; i < (bolusAmountScaler); i++) {         //PKT 1001 tilføjet+1 da den ikke vil tænde diode hvis det er 0,1 men  godt hvis det er 0,2 - fjernet igen
-        setB();
-    }
-    setACT();
-    setACT();       //PKT 1701 tilføjet ser ud som om act skal sætte 2 gang på fjernbetjening
-    bolusDelivered++;
-    prevTreatmentTime = millis();
+    sendBluetooth(command);
 }
 //**************************************************************************************************************
 //Set ACT
@@ -233,17 +215,17 @@ void setACT(){
 //Set B
 void setB(){
     digitalWrite(B, HIGH);       // sets the B digital pin 19 on   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(3000);                  // waits for 2 second            ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------PKT 1001  rettet til 2 istedet for 1 
+    delay(3000);                  // waits for 2 second            ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------PKT 1001  rettet til 2 istedet for 1
     digitalWrite(B, LOW);       // sets the B digital pin 19 OFF   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(3000);                // PKT 1001  rettet til 2 istedet for 1  
+    delay(3000);                // PKT 1001  rettet til 2 istedet for 1
 }
 //**************************************************************************************************************
 //Set S
 void setS(){
     digitalWrite(S, HIGH);       // sets the S digital pin 17 on
-    delay(3000);                  // waits for 2 second1  //// test med 5000 pkt 2112       PKT 1001  rettet til 2 istedet for 5 
+    delay(3000);                  // waits for 2 second1  //// test med 5000 pkt 2112       PKT 1001  rettet til 2 istedet for 5
     digitalWrite(S, LOW);       // sets the S digital pin 17 on
-    delay(3000);                  //  PKT 1001  rettet til 2 istedet for 1     waits for 2 second      
+    delay(3000);                  //  PKT 1001  rettet til 2 istedet for 1     waits for 2 second
 }
 //**************************************************************************************************************
 //Return to basal rate
@@ -252,49 +234,12 @@ void cancelTempBasal() {
     resetToDefault();
 }
 //**************************************************************************************************************
-//Stop temp and make sure pump is on
+//Stop temp
 void resetToDefault() {
+
+    /*
     setPumpStatus(pON);
-}
-//**************************************************************************************************************
-//Change status of pump - On and Off
-void setPumpStatus(uint8_t state) { //If state is ON -> Turn on the pump. If state is OFF -> Turn off the pump
-    if (!pumpActive && state == pON) { //If we want to start the pump, and the pump is off, start it with base basal rate
-        Serial.println("Starting pump");
-        changePumpStatus();
-        pumpActive = true;
-    } else if (pumpActive && state == pOFF) { //If we want to turn off the pump, and the pump is on, turn off the pump.
-        Serial.println("Stopping pump");
-        changePumpStatus();
-        pumpActive = false;
-    }
-}
-//**************************************************************************************************************
-//Turn off the pump
-void changePumpStatus() {
-    setACT();
-    for (uint8_t i = 0; i < 2; i++) {// Loop to do "something" n times
-        setS();
-    }
-    setACT();
-}
-//**************************************************************************************************************
-//Handle bolus delivery
-void manageTreatment() {
-    if ((millis() - prevTreatmentTime >= bolusTimeInterval * min_to_ms) && bolusDelivered < bolusCount) {
-        deliverBolus();
-    }
-}
-//**************************************************************************************************************
-//Handle continous pump action
-void managePump() {
-    if (tempActive && (millis() - firstTreatmentTime >= tempDuration * min_to_ms)){
-        tempActive = false;
-        Serial.println("Temp over - Resetting to default");
-        resetToDefault(); //Cancel temp and return pump to default state
-    } else if (tempActive){
-        manageTreatment();
-    }
+    */
 }
 //**************************************************************************************************************
 void setupHardware(){
@@ -302,6 +247,71 @@ void setupHardware(){
     pinMode(B, OUTPUT);
     pinMode(ACT, OUTPUT);
     pinMode(S, OUTPUT);
+
+
+}
+//**************************************************************************************************************
+//Transmit bluetooth message to host
+void sendBluetooth(String message) {
+    for (uint8_t i = 0; i < message.length(); i++){
+        #ifdef debug_serial
+            char buff = message[i];
+            Serial.print(buff);
+            SerialBT.write(buff);
+        #else
+            SerialBT.write(message[i]);
+        #endif
+    }
+    SerialBT.write(13);
+}
+//**************************************************************************************************************
+//Update timer
+void updateWakeTimer(String command) {
+    wakeInterval = cutVariableFromString(command, APS_wake, 1, vInt);
+    sendWake();
+}
+//**************************************************************************************************************
+void sendWake() {
+    String command = ESP_wake;
+    command.concat(wakeInterval);
+    sendBluetooth(command);
+}
+//**************************************************************************************************************
+void sleepNow() {
+    #ifdef debug_serial
+        Serial.println("Going to sleep!");
+        Serial.print("Waking in: ");
+        Serial.print(wakeInterval);
+        Serial.println(" min");
+    #endif
+    sendBluetooth(ESP_sleep);
+    esp_sleep_enable_timer_wakeup(wakeInterval * M_TO_uS_FACTOR);
+    esp_deep_sleep_start();
+}
+//**************************************************************************************************************
+void handshake() {
+    if (!handshakingCompleted && ((currentMillis - lastMessageTime) >= handshakeInterval)) {
+        #ifdef debug_serial
+            Serial.println("Handshaking!...");
+        #endif
+        sendWake();
+        lastMessageTime = millis();
+    }
+    if (handshakingCompleted && (currentMillis - wakeTime) >= (wakeInterval * min_to_ms * resetTimeScaler)) { //AndroidAPS didn't connect, reset
+        handshakingCompleted = false;
+        #ifdef debug_serial
+            Serial.println("Resetting handshake");
+        #endif
+    }
+}
+//**************************************************************************************************************
+void handleTreatment() {
+    if ((currentMillis - tempStart) >= ((tempDuration * min_to_ms) + 30000)) {
+        tempActive = false;
+        
+
+
+    }
 }
 //**************************************************************************************************************
 //Setup
@@ -311,12 +321,14 @@ void setup() {
     #endif
     setupBluetooth();
     setupHardware();
+    wakeTime = millis();
 }
 //**************************************************************************************************************
 //Main loop
 void loop() {
+    currentMillis = millis();
+    handshake();
     readBluetooth();
-    managePump();
 }
 //**************************************************************************************************************
 //Converts a int value to a char
@@ -417,108 +429,6 @@ char ASCIIintToChar(uint8_t input) {
         case 124: return '|';
         case 125: return '}';
         case 126: return '~';
-        default: return ' ';
-    }
-}
-//**************************************************************************************************************
-//Converts a char to an int
-uint8_t ASCIIcharToInt(char input) {
-    switch (input) { //Converts from char to int using ASCII
-        case '\n': return 10;
-        case '\r': return 13;
-        case ' ': return 32;
-        case '!': return 33;
-        case '"': return 34;
-        case '#': return 35;
-        case '$': return 36;
-        case '%': return 37;
-        case '&': return 38;
-        case '(': return 40;
-        case ')': return 41;
-        case '*': return 42;
-        case '+': return 43;
-        case ',': return 44;
-        case '-': return 45;
-        case '.': return 46;
-        case '/': return 47;
-        case '0': return 48;
-        case '1': return 49;
-        case '2': return 50;
-        case '3': return 51;
-        case '4': return 52;
-        case '5': return 53;
-        case '6': return 54;
-        case '7': return 55;
-        case '8': return 56;
-        case '9': return 57;
-        case ':': return 58;
-        case ';': return 59;
-        case '<': return 60;
-        case '=': return 61;
-        case '>': return 62;
-        case '?': return 63;
-        case '@': return 64;
-        case 'A': return 65;
-        case 'B': return 66;
-        case 'C': return 67;
-        case 'D': return 68;
-        case 'E': return 69;
-        case 'F': return 70;
-        case 'G': return 71;
-        case 'H': return 72;
-        case 'I': return 73;
-        case 'J': return 74;
-        case 'K': return 75;
-        case 'L': return 76;
-        case 'M': return 77;
-        case 'N': return 78;
-        case 'O': return 79;
-        case 'P': return 80;
-        case 'Q': return 81;
-        case 'R': return 82;
-        case 'S': return 83;
-        case 'T': return 84;
-        case 'U': return 85;
-        case 'V': return 86;
-        case 'W': return 87;
-        case 'X': return 88;
-        case 'Y': return 89;
-        case 'Z': return 90;
-        case '[': return 91;
-        case ']': return 93;
-        case '^': return 94;
-        case '_': return 95;
-        case '`': return 96;
-        case 'a': return 97;
-        case 'b': return 98;
-        case 'c': return 99;
-        case 'd': return 100;
-        case 'e': return 101;
-        case 'f': return 102;
-        case 'g': return 103;
-        case 'h': return 104;
-        case 'i': return 105;
-        case 'j': return 106;
-        case 'k': return 107;
-        case 'l': return 108;
-        case 'm': return 109;
-        case 'n': return 110;
-        case 'o': return 111;
-        case 'p': return 112;
-        case 'q': return 113;
-        case 'r': return 114;
-        case 's': return 115;
-        case 't': return 116;
-        case 'u': return 117;
-        case 'v': return 118;
-        case 'w': return 119;
-        case 'x': return 120;
-        case 'y': return 121;
-        case 'z': return 122;
-        case '{': return 123;
-        case '|': return 124;
-        case '}': return 125;
-        case '~': return 126;
         default: return ' ';
     }
 }
