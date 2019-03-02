@@ -1,5 +1,5 @@
 # ESP32-BluetoothPump
-Source code for an ESP32 intended to be connected to a Medtronic MMT-554 pump, allowing for regulation of temp basal rate. The ESP is intended to be pared with a modificed version of the AndroidAPS app. AndroidAPS utilizes CGM data to calculate the optimal temp basal rate to be set to mantain a stable blood sugar level. The modified version of AndroidAPS allows for transmission of the temp basal rate to the ESP. The ESP can then set the temp basal rate in the Medtronic MMT-554 pump, using the physical pump interface. 
+Source code for an ESP32 intended to be connected to a Medtronic MMT-554 pump, allowing for regulation of temp basal rate. The ESP is intended to be pared with a modificed version of the AndroidAPS app. AndroidAPS utilizes CGM data to calculate the optimal temp basal rate to be set to maintain a stable blood sugar level. The modified version of AndroidAPS allows for transmission of the temp basal rate to the ESP. The ESP can then set the temp basal rate in the Medtronic MMT-554 pump, using the physical pump interface. 
 
 ## Setup
 
