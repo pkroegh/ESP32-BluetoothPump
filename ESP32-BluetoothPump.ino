@@ -1,51 +1,38 @@
 //Librarys
-//hist: 20190208 lasse
 //--------------------------------------------------------------------------------------------------------------
 #include <math.h>
 #include <BluetoothSerial.h>
 //**************************************************************************************************************
 //Bluetooth serial variables
 //--------------------------------------------------------------------------------------------------------------
-const String deviceName = "BluetoothPumpESP"; //Defines the name of the device
-//const String deviceKey = "DSjk4398@jkf";
+const String deviceName = "MedtronicESP"; //Defines the name of the device
 //***************************************************************************************************************
-//Treatment variables
+//
 //--------------------------------------------------------------------------------------------------------------
 #define M_TO_uS_FACTOR 60000000
 #define uS_TO_S_FACTOR 1000000
-
+#define min_to_ms 60000
+#define vInt 0
+#define vFloat 1
+#define pOFF 0
+#define pON 1
+//**************************************************************************************************************
+//Bluetooth serial variables
+//--------------------------------------------------------------------------------------------------------------
 RTC_DATA_ATTR float baseBasal; //Pump base basal rate, in U/h
 RTC_DATA_ATTR float tempBasal; //Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration; //Duration of temp basal, in min.
 RTC_DATA_ATTR uint8_t tempStart; //Duration of temp basal, in min.
-//bool pumpActive = true;
 RTC_DATA_ATTR bool tempActive = false;
 
 uint8_t wakeInterval = 1;
 
-//const float minBolus = 0.1; //Minimum bolus delivery possible
-//const float maxDeltaBasal = 5.0; //Maximum delta basal rate. --####Rettet####
-//const uint8_t minTimeInterval = 4; //Minimum time interval bewteen bolus delivery --####Rettet####
-
-//float deltaBasal; //Difference between baseBasal and tempBasal
-//float bolusAmount; //Amount of U to deliver
-//uint8_t bolusAmountScaler;
-//uint8_t bolusCount; //Number of times to deliver minBolus
-//uint8_t bolusTimeInterval; //Time between each minBolus, in minuts.
-//uint8_t bolusDelivered; //Tracker for amount of times bolus has been delivered
-
-//unsigned long firstTreatmentTime; //Time of first bolus delivery
-//unsigned long prevTreatmentTime; //Previous treatment time, in milliseconds.
 //****PKT 1512**********************************************************************************************************
 const int B = 19; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
 const int S = 17; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
 const int ACT = 16; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
 //****PKT 1512**********************************************************************************************************
-#define vInt 0
-#define vFloat 1
-#define pOFF 0
-#define pON 1
-#define min_to_ms 60000
+
 //**************************************************************************************************************
 //DEBUG variables
 //--------------------------------------------------------------------------------------------------------------
@@ -56,7 +43,7 @@ const int ACT = 16; // Could be different depending on the dev board. I used the
 #define print_bluetooth
 #endif
 
-#define handshakeInterval 1000 //Milliseconds between handshake attempt
+#define handshakeInterval 2000 //Milliseconds between handshake attempt
 bool handshakingCompleted = false;
 uint64_t lastMessageTime;
 #define resetTimeScaler 2
@@ -66,12 +53,10 @@ uint64_t currentMillis;
 
 #define ESP_battery "e="
 #define ESP_wake "w="
-#define ESP_base "b="
 #define ESP_temp "t="
 #define ESP_sleep "s"
 
 #define APS_ping "P"
-#define APS_base "B="
 #define APS_temp "T="
 #define APS_wake "W="
 #define APS_sleep "S"
@@ -81,16 +66,6 @@ uint64_t currentMillis;
 //Library instance initialization
 //--------------------------------------------------------------------------------------------------------------
 BluetoothSerial SerialBT;
-//**************************************************************************************************************
-//Setup bluetooth serial
-void setupBluetooth() {
-    SerialBT.begin(deviceName); //Starts bluetooth serial
-    delay(200); // wait for voltage stabilize
-    #ifdef print_bluetooth
-        Serial.print("BluetoothSerial started with device name: ");
-        Serial.println(deviceName);
-    #endif
-}
 //**************************************************************************************************************
 //Read from bleutooth serial and add to buffer
 void readBluetooth(String dataString = "") {
@@ -123,11 +98,6 @@ void processBluetooth(String command) {
         #ifdef debug_serial
             Serial.println("Done handshaking");
         #endif
-    } else if (command.indexOf(APS_base) >= 0) {
-        #ifdef debug_serial
-            Serial.println("Base basal rate command");
-        #endif
-        baseBasalRate(command);
     } else if (command.indexOf(APS_temp) >= 0) {
         if (command.indexOf("null") >= 0) {
             cancelTempBasal();
@@ -155,28 +125,6 @@ float cutVariableFromString(String inputString, String leadingString, int sizeOf
     } else if (type == 1) {
         return inputString.toFloat();
     }
-}
-//**************************************************************************************************************
-//Isolate base basal rate
-void baseBasalRate(String command) {
-    if (command.length() > 2) {
-        float newBaseBasal = cutVariableFromString(command, APS_base, 4, vFloat);
-        if (newBaseBasal != baseBasal) {
-            #ifdef debug_serial
-                Serial.print("New baseBasal rate set to ");
-                Serial.print(newBaseBasal);
-                Serial.print(" from ");
-                Serial.print(baseBasal);
-                Serial.println(".");
-            #endif
-            baseBasal = newBaseBasal;
-
-
-        }
-    }
-    command = ESP_base;
-    command.concat(baseBasal);
-    sendBluetooth(command);
 }
 //**************************************************************************************************************
 //Isolate temp basal rate and duration
@@ -242,15 +190,6 @@ void resetToDefault() {
     */
 }
 //**************************************************************************************************************
-void setupHardware(){
-    pinMode(18, OUTPUT);
-    pinMode(B, OUTPUT);
-    pinMode(ACT, OUTPUT);
-    pinMode(S, OUTPUT);
-
-
-}
-//**************************************************************************************************************
 //Transmit bluetooth message to host
 void sendBluetooth(String message) {
     for (uint8_t i = 0; i < message.length(); i++){
@@ -312,6 +251,25 @@ void handleTreatment() {
 
 
     }
+}
+//**************************************************************************************************************
+//Setup bluetooth serial
+void setupBluetooth() {
+    SerialBT.begin(deviceName); //Starts bluetooth serial
+    delay(200); // wait for voltage stabilize
+    #ifdef print_bluetooth
+        Serial.print("BluetoothSerial started with device name: ");
+        Serial.println(deviceName);
+    #endif
+}
+//**************************************************************************************************************
+void setupHardware(){
+    pinMode(18, OUTPUT);
+    pinMode(B, OUTPUT);
+    pinMode(ACT, OUTPUT);
+    pinMode(S, OUTPUT);
+
+
 }
 //**************************************************************************************************************
 //Setup
