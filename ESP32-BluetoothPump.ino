@@ -2,66 +2,32 @@
 //--------------------------------------------------------------------------------------------------------------
 #include <math.h>
 #include <BluetoothSerial.h>
+#include "definitions.h"
+#include "esp_pinout.h"
+#include "debug.h"
+#include "ASCII.h"
 //**************************************************************************************************************
-//Bluetooth serial variables
+//Bluetooth device name
 //--------------------------------------------------------------------------------------------------------------
 const String deviceName = "MedtronicESP"; //Defines the name of the device
-//***************************************************************************************************************
-//
-//--------------------------------------------------------------------------------------------------------------
-#define M_TO_uS_FACTOR 60000000
-#define uS_TO_S_FACTOR 1000000
-#define min_to_ms 60000
-#define vInt 0
-#define vFloat 1
-#define pOFF 0
-#define pON 1
 //**************************************************************************************************************
-//Bluetooth serial variables
+//RTC data variables (Persistent variables)
 //--------------------------------------------------------------------------------------------------------------
 RTC_DATA_ATTR float baseBasal; //Pump base basal rate, in U/h
 RTC_DATA_ATTR float tempBasal; //Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration; //Duration of temp basal, in min.
 RTC_DATA_ATTR uint8_t tempStart; //Duration of temp basal, in min.
 RTC_DATA_ATTR bool tempActive = false;
-
-uint8_t wakeInterval = 1;
-
-//****PKT 1512**********************************************************************************************************
-const int B = 19; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
-const int S = 17; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
-const int ACT = 16; // Could be different depending on the dev board. I used the DOIT ESP32 dev board.
-//****PKT 1512**********************************************************************************************************
-
 //**************************************************************************************************************
-//DEBUG variables
+//Temp variables
 //--------------------------------------------------------------------------------------------------------------
-#define debug_serial
-#define ignore_confirm
-#ifdef debug_serial
-#define print_setup
-#define print_bluetooth
-#endif
-
-#define handshakeInterval 2000 //Milliseconds between handshake attempt
+uint8_t wakeInterval = 1;
+#define handshakeInterval 3000 //Milliseconds between handshake attempt3
+#define resetTimeScaler 2
 bool handshakingCompleted = false;
 uint64_t lastMessageTime;
-#define resetTimeScaler 2
 uint64_t wakeTime;
-
 uint64_t currentMillis;
-
-#define ESP_battery "e="
-#define ESP_wake "w="
-#define ESP_temp "t="
-#define ESP_sleep "s"
-
-#define APS_ping "P"
-#define APS_temp "T="
-#define APS_wake "W="
-#define APS_sleep "S"
-
-#define comm_variable1 ":0="
 //**************************************************************************************************************
 //Library instance initialization
 //--------------------------------------------------------------------------------------------------------------
@@ -152,30 +118,6 @@ void newTempBasal(String command) {
     sendBluetooth(command);
 }
 //**************************************************************************************************************
-//Set ACT
-void setACT(){
-    digitalWrite(ACT, HIGH);      // sets the ACT digital pin 18 on
-    delay(3000);                  // waits for 2 second
-    digitalWrite(ACT, LOW);       // sets the ACT digital pin 18 OFF
-    delay(3000);                  // waits for 2 second
-}
-//**************************************************************************************************************
-//Set B
-void setB(){
-    digitalWrite(B, HIGH);       // sets the B digital pin 19 on   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(3000);                  // waits for 2 second            ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------PKT 1001  rettet til 2 istedet for 1
-    digitalWrite(B, LOW);       // sets the B digital pin 19 OFF   ------- dettes skal gøres i X gange for af´t give rigt mængde ---------------------
-    delay(3000);                // PKT 1001  rettet til 2 istedet for 1
-}
-//**************************************************************************************************************
-//Set S
-void setS(){
-    digitalWrite(S, HIGH);       // sets the S digital pin 17 on
-    delay(3000);                  // waits for 2 second1  //// test med 5000 pkt 2112       PKT 1001  rettet til 2 istedet for 5
-    digitalWrite(S, LOW);       // sets the S digital pin 17 on
-    delay(3000);                  //  PKT 1001  rettet til 2 istedet for 1     waits for 2 second
-}
-//**************************************************************************************************************
 //Return to basal rate
 void cancelTempBasal() {
     tempActive = false;
@@ -263,15 +205,6 @@ void setupBluetooth() {
     #endif
 }
 //**************************************************************************************************************
-void setupHardware(){
-    pinMode(18, OUTPUT);
-    pinMode(B, OUTPUT);
-    pinMode(ACT, OUTPUT);
-    pinMode(S, OUTPUT);
-
-
-}
-//**************************************************************************************************************
 //Setup
 void setup() {
     #ifdef debug_serial
@@ -289,104 +222,3 @@ void loop() {
     readBluetooth();
 }
 //**************************************************************************************************************
-//Converts a int value to a char
-char ASCIIintToChar(uint8_t input) {
-    switch (input) { //Converts from int to char using ASCII
-        case 10: return '\n';
-        case 13: return '\r';
-        case 32: return ' ';
-        case 33: return '!';
-        case 34: return '"';
-        case 35: return '#';
-        case 36: return '$';
-        case 37: return '%';
-        case 38: return '&';
-        case 40: return '(';
-        case 41: return ')';
-        case 42: return '*';
-        case 43: return '+';
-        case 44: return ',';
-        case 45: return '-';
-        case 46: return '.';
-        case 47: return '/';
-        case 48: return '0';
-        case 49: return '1';
-        case 50: return '2';
-        case 51: return '3';
-        case 52: return '4';
-        case 53: return '5';
-        case 54: return '6';
-        case 55: return '7';
-        case 56: return '8';
-        case 57: return '9';
-        case 58: return ':';
-        case 59: return ';';
-        case 60: return '<';
-        case 61: return '=';
-        case 62: return '>';
-        case 63: return '?';
-        case 64: return '@';
-        case 65: return 'A';
-        case 66: return 'B';
-        case 67: return 'C';
-        case 68: return 'D';
-        case 69: return 'E';
-        case 70: return 'F';
-        case 71: return 'G';
-        case 72: return 'H';
-        case 73: return 'I';
-        case 74: return 'J';
-        case 75: return 'K';
-        case 76: return 'L';
-        case 77: return 'M';
-        case 78: return 'N';
-        case 79: return 'O';
-        case 80: return 'P';
-        case 81: return 'Q';
-        case 82: return 'R';
-        case 83: return 'S';
-        case 84: return 'T';
-        case 85: return 'U';
-        case 86: return 'V';
-        case 87: return 'W';
-        case 88: return 'X';
-        case 89: return 'Y';
-        case 90: return 'Z';
-        case 91: return '[';
-        case 93: return ']';
-        case 94: return '^';
-        case 95: return '_';
-        case 96: return '`';
-        case 97: return 'a';
-        case 98: return 'b';
-        case 99: return 'c';
-        case 100: return 'd';
-        case 101: return 'e';
-        case 102: return 'f';
-        case 103: return 'g';
-        case 104: return 'h';
-        case 105: return 'i';
-        case 106: return 'j';
-        case 107: return 'k';
-        case 108: return 'l';
-        case 109: return 'm';
-        case 110: return 'n';
-        case 111: return 'o';
-        case 112: return 'p';
-        case 113: return 'q';
-        case 114: return 'r';
-        case 115: return 's';
-        case 116: return 't';
-        case 117: return 'u';
-        case 118: return 'v';
-        case 119: return 'w';
-        case 120: return 'x';
-        case 121: return 'y';
-        case 122: return 'z';
-        case 123: return '{';
-        case 124: return '|';
-        case 125: return '}';
-        case 126: return '~';
-        default: return ' ';
-    }
-}
