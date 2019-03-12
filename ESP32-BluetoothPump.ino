@@ -13,10 +13,9 @@ const String deviceName = "MedtronicESP"; //Defines the name of the device
 //**************************************************************************************************************
 //RTC data variables (Persistent variables)
 //--------------------------------------------------------------------------------------------------------------
-RTC_DATA_ATTR float baseBasal; //Pump base basal rate, in U/h
+//RTC_DATA_ATTR float baseBasal; //Pump base basal rate, in U/h
 RTC_DATA_ATTR float tempBasal; //Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration; //Duration of temp basal, in min.
-RTC_DATA_ATTR uint8_t tempStart; //Duration of temp basal, in min.
 RTC_DATA_ATTR bool tempActive = false;
 //**************************************************************************************************************
 //Temp variables
@@ -183,15 +182,6 @@ void handshake() {
         #ifdef debug_serial
             Serial.println("Resetting handshake");
         #endif
-    }
-}
-//**************************************************************************************************************
-void handleTreatment() {
-    if ((currentMillis - tempStart) >= ((tempDuration * min_to_ms) + 30000)) {
-        tempActive = false;
-        
-
-
     }
 }
 //**************************************************************************************************************
