@@ -1,7 +1,10 @@
-//**************************************************************************************************************
-//Converts a int value to a char
+#include "ASCII.h"
+//************************************************************************************
+// Public functions
+//************************************************************************************
+// Converts a int value to a char
 char ASCIIintToChar(uint8_t input) {
-    switch (input) { //Converts from int to char using ASCII
+    switch (input) { //Converts int to char using ASCII
         case 10: return '\n';
         case 13: return '\r';
         case 32: return ' ';
@@ -100,4 +103,3 @@ char ASCIIintToChar(uint8_t input) {
         default: return ' ';
     }
 }
-//**************************************************************************************************************
