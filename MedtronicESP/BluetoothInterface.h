@@ -1,26 +1,27 @@
+// ESP <-> AndroidAPS interface
 // Bluetooth library for communication between ESP and AndroidAPS
 
 // ensure this library description is only included once
-#ifndef MedtronicBluetooth_h
-#define MedtronicBluetooth_h
+#ifndef BluetoothInterface_h
+#define BluetoothInterface_h
 
 #include <Arduino.h>
 #include <BluetoothSerial.h>
 
-class MedtronicBluetooth {
+class BluetoothInterface {
     public:
-        MedtronicBluetooth(String deviceName, bool setDebug = false);
+        BluetoothInterface(void);
 
+        void begin(String name);
+        void begin(String name, bool debug);
         String getMessage();
         void sendMessage(String message);
-
     private:
         BluetoothSerial SerialBT;
-
-        bool debugBluetooth = false;
+        bool _debug = false;
+        String _deviceName;
 
         String readBluetooth(String dataString = "");
         void sendBluetooth(String message);
-        void debug(uint8_t debuglvl);
 };
 #endif

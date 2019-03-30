@@ -1,37 +1,49 @@
 #include <Arduino.h>
-#include "MedtronicBluetooth.h"
+#include "BluetoothInterface.h"
 #include "ASCII.h"
 //************************************************************************************
 // Public functions
 //************************************************************************************
+// Initialize library
+BluetoothInterface::BluetoothInterface() {
+    this->_deviceName = "ESP32"; //Set default name
+}
 // Start bluetooth communication
-MedtronicBluetooth::MedtronicBluetooth(String deviceName, bool setDebug = false) {
-    SerialBT.begin(deviceName); // Starts bluetooth serial
+void BluetoothInterface::begin(String name) {
+    SerialBT.begin(name); // Starts bluetooth serial
     delay(200); // wait for voltage stabilize
-    if(setDebug) {
-        this->debugBluetooth = true;
-        debug(1);
-    } 
+}
+// Start bluetooth communication with debug
+void BluetoothInterface::begin(String name, bool debug) {
+    SerialBT.begin(name); // Starts bluetooth serial
+    delay(200); // wait for voltage stabilize
+    this->_debug = debug;
+    if(this->_debug) {
+        Serial.print("BluetoothSerial started with device name: ");
+        Serial.println(name);
+    }
 }
 // If any, get bluetooth message
-String MedtronicBluetooth::getMessage() {
+String BluetoothInterface::getMessage() {
     return readBluetooth();
 }
 // Send bluetooth message
-void MedtronicBluetooth::sendMessage(String message) {
+void BluetoothInterface::sendMessage(String message) {
     sendBluetooth(message);
 }
 //************************************************************************************
 // Private functions
 //************************************************************************************
 // Read from bleutooth serial and add to buffer
-String MedtronicBluetooth::readBluetooth(String dataString) {
+String BluetoothInterface::readBluetooth(String dataString) {
     boolean dataAvaliable = false;
     uint8_t btData;
     while (SerialBT.available()) { // Run when data in buffer
         dataAvaliable = true;
         btData = SerialBT.read(); // Add data to variable
         if (btData == 13) { // New line marks end of string
+            if (this->_debug) { Serial.print("Got string: ");
+                Serial.println(dataString); }
             return dataString; // Return the string
         }
         dataString.concat(ASCIIintToChar(btData)); // Add data to string
@@ -40,30 +52,15 @@ String MedtronicBluetooth::readBluetooth(String dataString) {
         delay(10); // Wait a short time
         readBluetooth(dataString); // Return to bluetooth reader
     }
-    return null;
+    return "";
 }
 // Transmit bluetooth message to host
-void MedtronicBluetooth::sendBluetooth(String message) {
+void BluetoothInterface::sendBluetooth(String message) {
+    if (this->_debug) { Serial.print("Transmitting message: "); }
     for (uint8_t i = 0; i < message.length(); i++){
-        if (this->debugBluetooth) {
-            char buff = message[i];
-            debug(2,buff)
-        }
+        if (this->_debug) { char buff = message[i]; Serial.print(buff); }
         SerialBT.write(message[i]);
     }
+    if (this->_debug) { Serial.println(""); }      
     SerialBT.write(13);
-}
-// Print debug info
-void MedtronicBluetooth::debug(uint8_t debuglvl, char character = null) {
-    switch (debuglvl) {
-        case 1:
-            Serial.print("BluetoothSerial started with device name: ");
-            Serial.println(deviceName);
-        break;
-        case 2:
-            if (character != null) {
-                Serial.print(character);
-            }
-        break;
-    }
 }

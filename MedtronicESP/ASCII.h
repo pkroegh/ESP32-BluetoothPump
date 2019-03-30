@@ -4,6 +4,8 @@
 #ifndef ASCII_h
 #define ASCII_h
 
+#include <Arduino.h>
+// Convert int to ASCII encoded char
 char ASCIIintToChar(uint8_t input);
 
 #endif
