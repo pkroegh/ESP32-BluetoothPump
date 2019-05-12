@@ -16,14 +16,14 @@
     #define min_to_ms 60000
 #endif
 
-#define defaultBACK 1
+#define defaultBOL 1
 #define defaultACT 2
 #define defaultESC 3
 #define defaultUP 4
 #define defualtDOWN 5
 
-#define press_time 100 // Time from press to release
-#define press_delay 100 // Time between presses
+#define press_time 50 // Time from press to release
+#define press_delay 200 // Time between presses
 
 #define durationStepInterval 30
 #define tempBasalInterval 0.025
@@ -40,7 +40,7 @@ class PumpInterface {
         PumpInterface(void);
 
         void begin();
-        void begin(uint8_t BACKpin, uint8_t ACTpin, uint8_t ESCpin, 
+        void begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin, 
                    uint8_t UPpin, uint8_t DOWNpin);
         void setTemp(float basalRate, uint8_t duration);
         void cancelTemp();
@@ -48,17 +48,20 @@ class PumpInterface {
         bool stopPump();
         bool startPump();
         void updateTime(uint64_t currentMillis);
+
+        bool debug_hardware(char action);
     private:
-        uint8_t BACK;
+        uint8_t BOL;
         uint8_t ACT;
         uint8_t ESC;
         uint8_t UP;
         uint8_t DOWN;
 
-        void pressBACK();
+        void pressBOL();
         void pressACT();
         void pressESC();
         void pressUP();
         void pressDOWN();
+        void escToMain();
 };
 #endif

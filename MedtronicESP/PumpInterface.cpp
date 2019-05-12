@@ -5,34 +5,34 @@
 //************************************************************************************
 // Setup pinout
 PumpInterface::PumpInterface() {
-    this->BACK = defaultBACK;
-    this->ACT = defaultACT;
-    this->ESC = defaultESC;
-    this->UP = defaultUP;
-    this->DOWN = defualtDOWN;
+    BOL = defaultBOL;
+    ACT = defaultACT;
+    ESC = defaultESC;
+    UP = defaultUP;
+    DOWN = defualtDOWN;
 }
 // Start pump interface, on default pinout
 void PumpInterface::begin() {
-    pinMode(this->BACK, OUTPUT);
-    pinMode(this->ACT, OUTPUT);
-    pinMode(this->ESC, OUTPUT);
-    pinMode(this->UP, OUTPUT);
-    pinMode(this->DOWN, OUTPUT);
+    pinMode(BOL, OUTPUT);
+    pinMode(ACT, OUTPUT);
+    pinMode(ESC, OUTPUT);
+    pinMode(UP, OUTPUT);
+    pinMode(DOWN, OUTPUT);
 }
 // Start pump interface, with defined pins
-void PumpInterface::begin(uint8_t BACKpin, uint8_t ACTpin, uint8_t ESCpin, 
+void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin, 
                      uint8_t UPpin, uint8_t DOWNpin) {
-    this->BACK = BACKpin;
-    this->ACT = ACTpin;
-    this->ESC = ESCpin;
-    this->UP = UPpin;
-    this->DOWN = DOWNpin;
+    BOL = BOLpin;
+    ACT = ACTpin;
+    ESC = ESCpin;
+    UP = UPpin;
+    DOWN = DOWNpin;
 
-    pinMode(this->BACK, OUTPUT);
-    pinMode(this->ACT, OUTPUT);
-    pinMode(this->ESC, OUTPUT);
-    pinMode(this->UP, OUTPUT);
-    pinMode(this->DOWN, OUTPUT);
+    pinMode(BOL, OUTPUT);
+    pinMode(ACT, OUTPUT);
+    pinMode(ESC, OUTPUT);
+    pinMode(UP, OUTPUT);
+    pinMode(DOWN, OUTPUT);
 }
 // Set a temp basal rate for a duration
 void PumpInterface::setTemp(float basalRate, uint8_t duration) {
@@ -43,7 +43,7 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
         tempActive = false;
     }
     pressACT();
-    for (uint8_t i = 0; i < 4; i++) {
+    for (uint8_t i = 0; i < 3; i++) {
         pressDOWN();
     }
     for (uint8_t i = 0; i < 2; i++) {
@@ -55,6 +55,7 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
     }
     pressACT();
     if (basalRate < tempBasalInterval) {
+        pressUP();
         pressDOWN();
     } else {
         uint8_t tempSteps = basalRate / tempBasalInterval;
@@ -63,9 +64,7 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
         }
     }
     pressACT();
-    for (uint8_t i = 0; i < 2; i++) {
-        pressESC();
-    }
+    escToMain();
     tempActive = true;
     tempStart = millis();
 }
@@ -75,15 +74,13 @@ void PumpInterface::cancelTemp() {
         return;
     }
     pressACT();
-    for (uint8_t i = 0; i < 4; i++) {
+    for (uint8_t i = 0; i < 3; i++) {
         pressDOWN();
     }
     pressACT();
     pressDOWN();
     pressACT();
-    for (uint8_t i = 0; i < 2; i++) {
-        pressESC();
-    }
+    escToMain();
     tempActive = false;
 }
 // Deliver bolus
@@ -132,41 +129,64 @@ void PumpInterface::updateTime(uint64_t currentMillis) {
         tempActive = false;
     }
 }
+// Debug hardware pinout
+bool PumpInterface::debug_hardware(char action) {
+    switch (action) {
+        case 'b': pressBOL(); return true; break;
+        case 'a': pressACT(); return true; break;
+        case 'e': pressESC(); return true; break;
+        case 'u': pressUP(); return true; break;
+        case 'd': pressDOWN(); return true; break;
+        default: return false; break;
+    }
+}
 //************************************************************************************
 // Private functions
 //************************************************************************************
-// Press BACK on pump
-void PumpInterface::pressBACK() {
-    digitalWrite(this->BACK, HIGH);
+// Press BOL on pump
+void PumpInterface::pressBOL() {
+    delay(press_delay);
+    digitalWrite(BOL, HIGH);
     delay(press_time);
-    digitalWrite(this->BACK, LOW);
+    digitalWrite(BOL, LOW);
     delay(press_delay);
 }
 // Press ACT on pump
 void PumpInterface::pressACT() {
-    digitalWrite(this->ACT, HIGH);
+    delay(press_delay);
+    digitalWrite(ACT, HIGH);
     delay(press_time);
-    digitalWrite(this->ACT, LOW);
+    digitalWrite(ACT, LOW);
     delay(press_delay);
 }
 // Press ESC on pump
 void PumpInterface::pressESC() {
-    digitalWrite(this->ESC, HIGH);
-    delay(press_time);
-    digitalWrite(this->ESC, LOW);
+    delay(press_delay);
+    digitalWrite(ESC, HIGH);
+    delay(press_time*4);
+    digitalWrite(ESC, LOW);
     delay(press_delay);
 }
 // Press UP on pump
 void PumpInterface::pressUP() {
-    digitalWrite(this->UP, HIGH);
+    delay(press_delay);
+    digitalWrite(UP, HIGH);
     delay(press_time);
-    digitalWrite(this->UP, LOW);
+    digitalWrite(UP, LOW);
     delay(press_delay);
 }
 // Press DOWN on pump
 void PumpInterface::pressDOWN() {
-    digitalWrite(this->DOWN, HIGH);
-    delay(press_time);
-    digitalWrite(this->DOWN, LOW);
     delay(press_delay);
+    digitalWrite(DOWN, HIGH);
+    delay(press_time);
+    digitalWrite(DOWN, LOW);
+    delay(press_delay);
+}
+// Escape from basal menu to main menu
+void PumpInterface::escToMain() {
+    delay(press_delay*4);
+    for (uint8_t i = 0; i < 2; i++) {
+        pressESC();
+    }
 }

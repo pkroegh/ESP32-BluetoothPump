@@ -1,8 +1,29 @@
 #include <Arduino.h>
-#include "ASCII.h"
+#include "MakeLifeEasy.h"
 //************************************************************************************
 // Public functions
 //************************************************************************************
+// Isolate value from string, as int (32bit)
+int32_t getIntfromStr(String inputString, String leadingString, 
+                        int sizeOfVariable) {
+    //Example string: "getBasalRate rate: 0.9 duration: 30"
+    //Isolate 0.9
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    //Example string: "0.9 duration: 30"
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toInt();
+}
+// Isolate value from string, as float
+float getFloatfromStr(String inputString, String leadingString, 
+                        int sizeOfVariable) {
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toFloat();
+}
 // Converts a int value to a char
 char ASCIIintToChar(uint8_t input) {
     switch (input) { //Converts int to char using ASCII
@@ -104,3 +125,6 @@ char ASCIIintToChar(uint8_t input) {
         default: return ' ';
     }
 }
+//************************************************************************************
+// Private functions
+//************************************************************************************
