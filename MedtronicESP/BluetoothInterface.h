@@ -16,6 +16,8 @@ class BluetoothInterface {
         void begin(String name, bool debug);
         String getMessage();
         void sendMessage(String message);
+        void end();
+
     private:
         BluetoothSerial SerialBT;
         bool _debug = false;

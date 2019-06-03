@@ -31,6 +31,10 @@ String BluetoothInterface::getMessage() {
 void BluetoothInterface::sendMessage(String message) {
     sendBluetooth(message);
 }
+// Stop bluetooth
+void BluetoothInterface::end() {
+    SerialBT.end();
+}
 //************************************************************************************
 // Private functions
 //************************************************************************************

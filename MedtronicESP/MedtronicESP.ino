@@ -14,19 +14,22 @@
 #define uS_TO_S_FACTOR 1000000
 #define min_to_ms 60000
 
-#define ESP_battery "e="
-#define ESP_wake "w="
-#define ESP_temp "t="
-#define ESP_sleep "s"
+const String ESP_battery = "e=";
+const String ESP_wake = "w=";
+const String ESP_temp = "t=";
+const String ESP_sleep = "s";
 
-#define APS_ping "P"
-#define APS_temp "T="
-#define APS_wake "W="
-#define APS_sleep "S"
-#define comm_variable1 ":0="
+const String APS_ping = "P";
+const String APS_temp = "T=";
+const String APS_wake = "W=";
+const String APS_sleep = "S";
+const String comm_variable1 = ":0=";
 
-#define handshakeInterval 3000 //Milliseconds between handshake attempt
+#define handshakeInterval 5000 //Milliseconds between handshake attempt
 #define resetTimeScaler 2
+
+// Password for accepting commands
+const String keyword = "dHyr7823Bh"; // Device password
 
 // Bluetooth device name
 const String deviceName = "MedtronicESP"; // Device name
@@ -55,7 +58,7 @@ void setup() {
     wakeTime = millis();
     // Start AndroidAPS communication
     pump.begin(15,14,32,27,33); // BOL, ACT, ESC, UP, DOWN
-    MedBlue.begin(deviceName);
+    MedBlue.begin(deviceName, true);
 }
 //************************************************************************************
 // Main loop
@@ -92,18 +95,28 @@ void processMessage(String command) {
     if (command == "") { return; }
     #ifdef doDebug
         Serial.print("Got BT string: "); 
-        Serial.println(command);
+        Serial.print(command);
     #endif
-    if (command.indexOf(APS_ping) >= 0) {
-        handshakingCompleted = true;
-        gotPing();
-    } else if (command.indexOf(APS_temp) >= 0) {
-        updateTemp(command);
-    } else if (command.indexOf(APS_wake) >= 0) {
-        updateWakeTimer(command);
-    } else if (command.indexOf(APS_sleep) >= 0) {
-        sleepNow();
-    }
+    if (command.indexOf(keyword) == 0) {
+        #ifdef doDebug
+            Serial.println(" - Correct password"); 
+        #endif
+        if (command.indexOf(APS_ping) >= 0) {
+            handshakingCompleted = true;
+            gotPing();
+        } else if (command.indexOf(APS_temp) >= 0) {
+            updateTemp(command);
+        } else if (command.indexOf(APS_wake) >= 0) {
+            updateWakeTimer(command);
+        } else if (command.indexOf(APS_sleep) >= 0) {
+            sleepNow();
+        }
+    } 
+    #ifdef doDebug
+        else {
+            Serial.println(" - Wrong password");
+        }
+    #endif
 }
 // Ping message, send battery status
 void gotPing() {
@@ -159,10 +172,12 @@ void sendWake() {
 }
 // Send sleep message and go to sleep
 void sleepNow() {
+    MedBlue.sendMessage(ESP_sleep);
+    delay(100); // Wait a short time to make sure message was sendt before shutting down
     #ifdef doDebug
         sleepNowDebug(wakeInterval); 
     #endif
-    MedBlue.sendMessage(ESP_sleep);
+    MedBlue.end();
     esp_sleep_enable_timer_wakeup(wakeInterval * M_TO_uS_FACTOR);
     esp_deep_sleep_start();
 }
