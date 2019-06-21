@@ -47,7 +47,6 @@ class PumpInterface {
         void setBolus(float amount);
         bool stopPump();
         bool startPump();
-        void updateTime(uint64_t currentMillis);
 
         bool debug_hardware(char action);
     private:
@@ -63,5 +62,6 @@ class PumpInterface {
         void pressUP();
         void pressDOWN();
         void escToMain();
+        bool hasTempExpired();
 };
 #endif

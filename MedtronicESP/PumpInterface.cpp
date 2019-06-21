@@ -39,7 +39,9 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
     tempBasal = basalRate;
     tempDuration = duration;
     if (tempActive) {
-        cancelTemp();
+        if (!hasTempExpired()) {
+            cancelTemp();
+        }
         tempActive = false;
     }
     pressACT();
@@ -70,18 +72,20 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
 }
 // Cancel temp basal rate
 void PumpInterface::cancelTemp() {
-    if (!tempActive) {
-        return;
-    }
-    pressACT();
-    for (uint8_t i = 0; i < 3; i++) {
+    if (tempActive) {
+        if (hasTempExpired()) {
+            return;
+        }
+        pressACT();
+        for (uint8_t i = 0; i < 3; i++) {
+            pressDOWN();
+        }
+        pressACT();
         pressDOWN();
+        pressACT();
+        escToMain();
+        tempActive = false;
     }
-    pressACT();
-    pressDOWN();
-    pressACT();
-    escToMain();
-    tempActive = false;
 }
 // Deliver bolus
 void PumpInterface::setBolus(float amount) {
@@ -121,12 +125,6 @@ bool PumpInterface::startPump() {
         return true;
     } else {
         return false;
-    }
-}
-// Compare temp start temp duration, and set temp active false, if temp over
-void PumpInterface::updateTime(uint64_t currentMillis) {
-    if ((currentMillis - tempStart) >= (tempDuration * min_to_ms)) {
-        tempActive = false;
     }
 }
 // Debug hardware pinout
@@ -189,4 +187,10 @@ void PumpInterface::escToMain() {
     for (uint8_t i = 0; i < 2; i++) {
         pressESC();
     }
+}
+bool PumpInterface::hasTempExpired() {
+    if ((millis() - tempStart) >= (tempDuration * min_to_ms)) {
+            return true;
+    }
+    return false;
 }
