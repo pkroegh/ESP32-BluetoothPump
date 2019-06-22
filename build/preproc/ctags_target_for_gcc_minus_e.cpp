@@ -36,7 +36,7 @@ BLECharacteristic *pOutputCharacteristic;
 const String ESP_battery = "e=";
 const String ESP_temp = "t=";
 const String ESP_bolus = "b=";
-const String ESP_sleep = "s";
+const String ESP_sleep = "s=";
 
 const String APS_ping = "P";
 const String APS_temp = "T=";
@@ -46,6 +46,8 @@ const String comm_variable1 = ":0=";
 
 #define handshakeInterval 5000 /*Milliseconds between handshake attempt*/
 #define resetTimeScaler 2
+
+#define cooldownTime 1
 
 // Password for accepting commands
 const String keyword = "123456"; // Device password
@@ -97,32 +99,28 @@ void processMessage(String command) {
         if (command.indexOf(APS_ping) >= 0) {
             gotPing();
         } else if (command.indexOf(APS_temp) >= 0) {
-            updateTemp(command);
+            gotTemp(command);
         } else if (command.indexOf(APS_bolus) >= 0) {
-            deliverBolus(command);
+            gotBolus(command);
         } else if (command.indexOf(APS_sleep) >= 0) {
-            sleepNow(command);
+            gotSleep(command);
         }
-    }
+    } else {
 
-        else {
             Serial.println(" - Wrong password");
-        }
 
+        gotWrongPassword();
+    }
 }
 // Ping message, send battery status
 void gotPing() {
 
 
-
     //MedBlue.sendMessage("e=100");
     sendMessage("e=100");
-
-        Serial.println("Done handshaking");
-
 }
 // Deliver bolus
-void deliverBolus(String command) {
+void gotBolus(String command) {
     float bolus = getFloatfromStr(command, APS_temp, 4);
     pump.setBolus(bolus);
     command = ESP_bolus;
@@ -134,7 +132,7 @@ void deliverBolus(String command) {
     sendMessage(command);
 }
 // Temp command
-void updateTemp(String command) {
+void gotTemp(String command) {
     if (command.indexOf("null") >= 0) {
         cancelTempBasal();
     } else {
@@ -164,7 +162,7 @@ void cancelTempBasal() {
     pump.cancelTemp();
 }
 // Send sleep message and go to sleep
-void sleepNow(String command) {
+void gotSleep(String command) {
     uint8_t wakeInterval = getIntfromStr(command, APS_sleep, 1);
     command = ESP_sleep;
     command.concat(wakeInterval);
@@ -174,11 +172,19 @@ void sleepNow(String command) {
 
         sleepNowDebug(wakeInterval);
 
-    //MedBlue.end();
+    sleepESP(wakeInterval);
+}
+// Put ESP to sleep
+void sleepESP(uint8_t sleepTime) {
     stopBluetooth();
-    esp_sleep_enable_timer_wakeup(wakeInterval * 60000000);
+    esp_sleep_enable_timer_wakeup(sleepTime * 60000000);
     esp_deep_sleep_start();
 }
+
+void gotWrongPassword() {
+    sleepESP(1);
+}
+
 
     // Temp serial debug
     void newTempDebug(float basalRate, uint8_t duration) {

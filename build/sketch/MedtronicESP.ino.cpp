@@ -36,7 +36,7 @@ BLECharacteristic *pOutputCharacteristic;
 const String ESP_battery = "e=";
 const String ESP_temp = "t=";
 const String ESP_bolus = "b=";
-const String ESP_sleep = "s";
+const String ESP_sleep = "s=";
 
 const String APS_ping = "P";
 const String APS_temp = "T=";
@@ -46,6 +46,8 @@ const String comm_variable1 = ":0=";
 
 #define handshakeInterval 5000 //Milliseconds between handshake attempt
 #define resetTimeScaler 2
+
+#define cooldownTime 1
 
 // Password for accepting commands
 const String keyword = "123456"; // Device password
@@ -65,39 +67,43 @@ PumpInterface pump;
 //BluetoothInterface MedBlue;
 //************************************************************************************
 // Setup
-#line 66 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 68 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void setup();
-#line 77 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 79 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void loop();
-#line 85 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 87 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void processMessage(String command);
-#line 112 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 114 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void gotPing();
-#line 123 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
-void deliverBolus(String command);
-#line 135 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
-void updateTemp(String command);
-#line 143 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 121 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+void gotBolus(String command);
+#line 133 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+void gotTemp(String command);
+#line 141 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void newTempBasal(String command);
-#line 161 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 159 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void cancelTempBasal();
-#line 165 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
-void sleepNow(String command);
+#line 163 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+void gotSleep(String command);
+#line 176 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+void sleepESP(uint8_t sleepTime);
 #line 182 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+void gotWrongPassword();
+#line 188 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void newTempDebug(float basalRate, uint8_t duration);
-#line 191 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 197 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void sleepNowDebug(uint8_t duration);
-#line 198 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 204 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void serialAction();
-#line 214 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 220 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void hardwareDebug(String action);
-#line 256 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 262 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void setupBluetooth(String mDeviceName);
-#line 287 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 293 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void stopBluetooth();
-#line 292 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 298 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 bool sendMessage(String message);
-#line 66 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
+#line 68 "g:\\Git\\ESP32-BluetoothPump\\MedtronicESP\\MedtronicESP.ino"
 void setup() {
     #ifdef doDebug
         Serial.begin(serialBaud);
@@ -130,32 +136,28 @@ void processMessage(String command) {
         if (command.indexOf(APS_ping) >= 0) {
             gotPing();
         } else if (command.indexOf(APS_temp) >= 0) {
-            updateTemp(command);
+            gotTemp(command);
         } else if (command.indexOf(APS_bolus) >= 0) {
-            deliverBolus(command);
+            gotBolus(command);
         } else if (command.indexOf(APS_sleep) >= 0) {
-            sleepNow(command);
+            gotSleep(command);
         }
-    } 
-    #ifdef doDebug
-        else {
+    } else {
+        #ifdef doDebug
             Serial.println(" - Wrong password");
-        }
-    #endif
+        #endif
+        gotWrongPassword();
+    }
 }
 // Ping message, send battery status
 void gotPing() {
 
 
-
     //MedBlue.sendMessage("e=100");
     sendMessage("e=100");
-    #ifdef doDebug
-        Serial.println("Done handshaking");
-    #endif
 }
 // Deliver bolus
-void deliverBolus(String command) {
+void gotBolus(String command) {
     float bolus = getFloatfromStr(command, APS_temp, 4);
     pump.setBolus(bolus);
     command = ESP_bolus;
@@ -167,7 +169,7 @@ void deliverBolus(String command) {
     sendMessage(command);
 }
 // Temp command
-void updateTemp(String command) {
+void gotTemp(String command) {
     if (command.indexOf("null") >= 0) {
         cancelTempBasal();
     } else {
@@ -197,7 +199,7 @@ void cancelTempBasal() {
     pump.cancelTemp();
 }
 // Send sleep message and go to sleep
-void sleepNow(String command) {
+void gotSleep(String command) {
     uint8_t wakeInterval = getIntfromStr(command, APS_sleep, 1);
     command = ESP_sleep;
     command.concat(wakeInterval);
@@ -207,11 +209,19 @@ void sleepNow(String command) {
     #ifdef doDebug
         sleepNowDebug(wakeInterval); 
     #endif
-    //MedBlue.end();
+    sleepESP(wakeInterval);
+}
+// Put ESP to sleep
+void sleepESP(uint8_t sleepTime) {
     stopBluetooth();
-    esp_sleep_enable_timer_wakeup(wakeInterval * M_TO_uS_FACTOR);
+    esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR);
     esp_deep_sleep_start();
 }
+
+void gotWrongPassword() {
+    sleepESP(cooldownTime);
+}
+
 #ifdef doDebug
     // Temp serial debug
     void newTempDebug(float basalRate, uint8_t duration) {
