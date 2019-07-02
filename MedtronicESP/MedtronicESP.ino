@@ -1,26 +1,8 @@
 //************************************************************************************
 // Librarys
 #include <Arduino.h>
-//#include "BluetoothInterface.h"
+#include "BLEInterface.h"
 #include "PumpInterface.h"
-#include "MakeLifeEasy.h"
-//************************************************************************************
-// BLE specific variables
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2904.h>
-
-bool deviceConnected = false;
-
-#define SERVICE_UUID           "27652cbb-76f0-45eb-bc37-826ca7315457" // UART service UUID
-#define CHARACTERISTIC_UUID_RX "8983c612-5b25-43cd-85f0-391f8dd3cb67"
-#define CHARACTERISTIC_UUID_TX "848909c1-a6f0-4fa4-ac2a-06b9a9d4eb60"
-
-BLEServer *pServer;
-
-BLECharacteristic *pInputCharacteristic;
-BLECharacteristic *pOutputCharacteristic;
 //************************************************************************************
 #define doDebug true
 #ifdef doDebug
@@ -35,23 +17,14 @@ const String ESP_battery = "e=";
 const String ESP_temp = "t=";
 const String ESP_bolus = "b=";
 const String ESP_sleep = "s=";
-
-const String APS_ping = "P";
-const String APS_temp = "T=";
-const String APS_bolus = "B=";
-const String APS_sleep = "S=";
-const String comm_variable1 = ":0=";
-
-#define handshakeInterval 5000 //Milliseconds between handshake attempt
-#define resetTimeScaler 2
+const String comm_variable1 = "&=";
 
 #define cooldownTime 1
 
 // Password for accepting commands
-const String keyword = "123456"; // Device password
-
+String password = "123456"; // Device password
 // Bluetooth device name
-const String deviceName = "MedESP"; // Device name
+String deviceName = "MedESP"; // Device name
 //************************************************************************************
 // RTC data variables (Persistent variables)
 RTC_DATA_ATTR bool pumpOn = true;
@@ -61,8 +34,8 @@ RTC_DATA_ATTR bool tempActive = false;
 RTC_DATA_ATTR uint64_t tempStart; // Temp start time
 //************************************************************************************
 // Library instance initialization
-PumpInterface pump;
-//BluetoothInterface MedBlue;
+BLEInterface ble(&deviceName, &messageHandler);
+PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart);
 //************************************************************************************
 // Setup
 void setup() {
@@ -70,64 +43,61 @@ void setup() {
         Serial.begin(serialBaud);
     #endif
     // Start AndroidAPS communication
+    ble.begin(doDebug);
     pump.begin(15,14,32,27,33); // BOL, ACT, ESC, UP, DOWN
-    //MedBlue.begin(deviceName, true);
-    setupBluetooth(deviceName);
 }
 //************************************************************************************
 // Main loop
 void loop() {
-    //processMessage(MedBlue.getMessage());
-    #ifdef doDebug
-        serialAction();
-    #endif
+
 }
 //************************************************************************************
-// Process message from bluetooth
-void processMessage(String command) {
-    if (command == "") { return; }
-    #ifdef doDebug
-        Serial.print("Got BT string: "); 
-        Serial.print(command);
-    #endif
-    if (command.indexOf(keyword) == 0) {
-        #ifdef doDebug
-            Serial.println(" - Correct password"); 
-        #endif
-        if (command.indexOf(APS_ping) >= 0) {
-            gotPing();
-        } else if (command.indexOf(APS_temp) >= 0) {
-            gotTemp(command);
-        } else if (command.indexOf(APS_bolus) >= 0) {
-            gotBolus(command);
-        } else if (command.indexOf(APS_sleep) >= 0) {
-            gotSleep(command);
+// New message callback for BLEInterface
+void messageHandler(String message) {
+    if (message.indexOf(password) == 0) {
+        if (doDebug) {
+            Serial.println("Correct password!");
         }
+        message.remove(0,password.length());
+        Serial.print("Message is: ");
+        Serial.println(message);
     } else {
-        #ifdef doDebug
-            Serial.println(" - Wrong password");
-        #endif
         gotWrongPassword();
+    }
+    char action = message.charAt(0);
+    Serial.print("At action: ");
+    Serial.println(action);
+    switch (action) {
+        case ble.pingAPS:
+            gotPing();
+        break;
+        case ble.tempAPS:
+            gotTemp(message);
+        break;
+        case ble.bolusAPS:
+            gotBolus(message);
+        break;
+        case ble.sleepAPS:
+            gotSleep(message);
+        break;
     }
 }
 // Ping message, send battery status
 void gotPing() {
 
-
     //MedBlue.sendMessage("e=100");
-    sendMessage("e=100");
+    ble.sendMessage("e=100");
 }
 // Deliver bolus
 void gotBolus(String command) {
-    float bolus = getFloatfromStr(command, APS_temp, 4);
+    String leadingString = String(ble.bolusAPS);
+    leadingString += "=";
+    float bolus = getFloatfromStr(command, leadingString, 4);
     pump.setBolus(bolus);
     command = ESP_bolus;
-    if (!tempActive) { command.concat("null"); } 
-    else {
-        command.concat(bolus);
-    }
+    command.concat(bolus);
     //MedBlue.sendMessage(command);
-    sendMessage(command);
+    ble.sendMessage(command);
 }
 // Temp command
 void gotTemp(String command) {
@@ -139,7 +109,9 @@ void gotTemp(String command) {
 }
 // Isolate temp basal rate and duration
 void newTempBasal(String command) {
-    float basalRate = getFloatfromStr(command, APS_temp, 4);
+    String leadingString = String(ble.tempAPS);
+    leadingString += "=";
+    float basalRate = getFloatfromStr(command, leadingString, 4);
     uint8_t duration = getIntfromStr(command, comm_variable1, 3);
     #ifdef doDebug
         newTempDebug(basalRate, duration);
@@ -153,7 +125,7 @@ void newTempBasal(String command) {
         command.concat(tempDuration);
     }
     //MedBlue.sendMessage(command);
-    sendMessage(command);
+    ble.sendMessage(command);
 }
 // Return to basal rate
 void cancelTempBasal() {
@@ -161,11 +133,13 @@ void cancelTempBasal() {
 }
 // Send sleep message and go to sleep
 void gotSleep(String command) {
-    uint8_t wakeInterval = getIntfromStr(command, APS_sleep, 1);
+    String leadingString = String(ble.sleepAPS);
+    leadingString += "=";
+    uint8_t wakeInterval = getIntfromStr(command, leadingString, 1);
     command = ESP_sleep;
     command.concat(wakeInterval);
     //MedBlue.sendMessage(ESP_sleep);
-    sendMessage(command);
+    ble.sendMessage(command);
     delay(100); // Wait a short time to make sure message was sendt before shutting down
     #ifdef doDebug
         sleepNowDebug(wakeInterval); 
@@ -174,13 +148,33 @@ void gotSleep(String command) {
 }
 // Put ESP to sleep
 void sleepESP(uint8_t sleepTime) {
-    stopBluetooth();
     esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR);
     esp_deep_sleep_start();
 }
 
 void gotWrongPassword() {
     sleepESP(cooldownTime);
+}
+// Isolate value from string, as int (32bit)
+int32_t getIntfromStr(String inputString, String leadingString, 
+                        uint8_t sizeOfVariable) {
+    //Example string: "getBasalRate rate: 0.9 duration: 30"
+    //Isolate 0.9
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    //Example string: "0.9 duration: 30"
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toInt();
+}
+// Isolate value from string, as float
+float getFloatfromStr(String inputString, String leadingString, 
+                        uint8_t sizeOfVariable) {
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toFloat();
 }
 
 #ifdef doDebug
@@ -232,80 +226,3 @@ void gotWrongPassword() {
         }
     }
 #endif
-
-//************************************************************************************
-// BLE specific functions
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-        deviceConnected = true;
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-        deviceConnected = false;
-    }
-};
-
-class MyCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-        std::string rxValue = pCharacteristic->getValue();
-        if (rxValue.length() > 0) {
-            Serial.print("Received Value: ");
-            for (int i = 0; i < rxValue.length(); i++) {
-                Serial.print(rxValue[i]);
-            }
-            Serial.println();
-            processMessage(rxValue.c_str());
-        }
-    }
-};
-
-void setupBluetooth(String mDeviceName) {
-    // Create the BLE Device
-    uint8_t size = mDeviceName.length()+1;
-    char charName[size];
-    mDeviceName.toCharArray(charName, size);
-    charName[size] = '\0';
-    BLEDevice::init(charName); // Give it a name
-    // Create the BLE Server
-    pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
-    // Create the BLE Service
-    BLEService *pService = pServer->createService(SERVICE_UUID);
-    // Create input BLE Characteristic
-    pInputCharacteristic = pService->
-        createCharacteristic(CHARACTERISTIC_UUID_RX, BLECharacteristic::PROPERTY_WRITE);
-    // Create output BLE Characteristic
-    pOutputCharacteristic = pService->
-        createCharacteristic(CHARACTERISTIC_UUID_TX, BLECharacteristic::PROPERTY_NOTIFY 
-                                                   | BLECharacteristic::PROPERTY_READ);
-    // Add descriptors
-    pInputCharacteristic->setCallbacks(new MyCallbacks());
-    pOutputCharacteristic->addDescriptor(new BLE2904());
-    // Add service UUID to advertising 
-    pServer->getAdvertising()->addServiceUUID(SERVICE_UUID);
-    // Start the service
-    pService->start();
-    // Start advertising
-    pServer->getAdvertising()->start();
-    Serial.println("BLE started");
-}
-
-void stopBluetooth() {
-    Serial.println("Stopping BLE");
-    pServer->getAdvertising()->stop();
-}
-
-bool sendMessage(String message) {
-    if (deviceConnected) {
-        uint8_t size = message.length()+1;
-        char charMessage[size];
-        message.toCharArray(charMessage, size);
-        charMessage[size] = '\0';
-        pOutputCharacteristic->setValue(charMessage);
-        pOutputCharacteristic->notify(); // Send the value to the app!
-        Serial.print("*** Sent string: ");
-        Serial.println(message);
-        return true;
-    }
-    return false;
-}

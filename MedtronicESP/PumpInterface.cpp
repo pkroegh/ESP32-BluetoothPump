@@ -4,7 +4,13 @@
 // Public functions
 //************************************************************************************
 // Setup pinout
-PumpInterface::PumpInterface() {
+PumpInterface::PumpInterface(bool *pumpOn, uint8_t *tempDuration,
+                             bool *tempActive, uint64_t *tempStart) {
+    _pumpOn = pumpOn;
+    _tempDuration = tempDuration;
+    _tempActive = tempActive;
+    _tempStart = tempStart;
+
     BOL = defaultBOL;
     ACT = defaultACT;
     ESC = defaultESC;
@@ -36,13 +42,13 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
 }
 // Set a temp basal rate for a duration
 void PumpInterface::setTemp(float basalRate, uint8_t duration) {
-    tempBasal = basalRate;
-    tempDuration = duration;
-    if (tempActive) {
+    _tempBasal = basalRate;
+    *_tempDuration = duration;
+    if (*_tempActive) {
         if (!hasTempExpired()) {
             cancelTemp();
         }
-        tempActive = false;
+        *_tempActive = false;
     }
     pressACT();
     for (uint8_t i = 0; i < 3; i++) {
@@ -67,12 +73,12 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
     }
     pressACT();
     escToMain();
-    tempActive = true;
-    tempStart = millis();
+    *_tempActive = true;
+    *_tempStart = millis();
 }
 // Cancel temp basal rate
 void PumpInterface::cancelTemp() {
-    if (tempActive) {
+    if (*_tempActive) {
         if (hasTempExpired()) {
             return;
         }
@@ -84,7 +90,7 @@ void PumpInterface::cancelTemp() {
         pressDOWN();
         pressACT();
         escToMain();
-        tempActive = false;
+        *_tempActive = false;
     }
 }
 // Deliver bolus
@@ -102,13 +108,13 @@ void PumpInterface::setBolus(float amount) {
 }
 // Stop pump
 bool PumpInterface::stopPump() {
-    if (pumpOn) {
+    if (*_pumpOn) {
 
 
 
 
 
-        pumpOn = false;
+        *_pumpOn = false;
         return true;
     } else {
         return false;
@@ -116,12 +122,12 @@ bool PumpInterface::stopPump() {
 }
 // Start pump
 bool PumpInterface::startPump() {
-    if (!pumpOn) {
+    if (!*_pumpOn) {
 
 
 
 
-        pumpOn = true;
+        *_pumpOn = true;
         return true;
     } else {
         return false;
@@ -189,7 +195,7 @@ void PumpInterface::escToMain() {
     }
 }
 bool PumpInterface::hasTempExpired() {
-    if ((millis() - tempStart) >= (tempDuration * min_to_ms)) {
+    if ((millis() - *_tempStart) >= (*_tempDuration * min_to_ms)) {
             return true;
     }
     return false;
