@@ -58,7 +58,7 @@ void messageHandler(String message) {
         if (doDebug) {
             Serial.println("Correct password!");
         }
-        message.remove(0,password.length());
+        message.remove(0,password.length() + 1);
         Serial.print("Message is: ");
         Serial.println(message);
     } else {
