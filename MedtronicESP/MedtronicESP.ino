@@ -139,8 +139,12 @@ void gotSleep(String command) {
     command = ESP_sleep;
     command.concat(wakeInterval);
     //MedBlue.sendMessage(ESP_sleep);
-    ble.sendMessage(command);
-    delay(100); // Wait a short time to make sure message was sendt before shutting down
+    while(!ble.sendMessage(command)) {
+        #ifdef doDebug
+            Serial.println("Failed to send sleep confirmed, retrying...");
+        #endif
+        delay(100);
+    }
     #ifdef doDebug
         sleepNowDebug(wakeInterval); 
     #endif

@@ -25,7 +25,9 @@ bool BLEInterface::sendMessage(String message) {
         message.toCharArray(charMessage, size);
         charMessage[size] = '\0';
         _pOutputCharacteristic->setValue(charMessage);
+        delay(10);
         _pOutputCharacteristic->notify(); // Send the value to the app!
+        delay(10);
         if (_debug) {
             Serial.print("*** Sent string: ");
             Serial.println(message);
