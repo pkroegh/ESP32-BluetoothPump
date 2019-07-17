@@ -29,15 +29,10 @@
 #define tempBasalInterval 0.025
 #define bolusStepInterval 0.05
 
-extern bool pumpOn;
-extern float tempBasal;
-extern uint8_t tempDuration;
-extern bool tempActive;
-extern uint64_t tempStart;
-
 class PumpInterface {
     public:
-        PumpInterface(void);
+        PumpInterface(bool *pumpOn, uint8_t *tempDuration,
+                      bool *tempActive, uint64_t *tempStart);
 
         void begin();
         void begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin, 
@@ -47,9 +42,9 @@ class PumpInterface {
         void setBolus(float amount);
         bool stopPump();
         bool startPump();
-        void updateTime(uint64_t currentMillis);
 
         bool debug_hardware(char action);
+
     private:
         uint8_t BOL;
         uint8_t ACT;
@@ -57,11 +52,18 @@ class PumpInterface {
         uint8_t UP;
         uint8_t DOWN;
 
+        float _tempBasal;
+        bool *_pumpOn;
+        uint8_t *_tempDuration;
+        bool *_tempActive;
+        uint64_t *_tempStart;
+
         void pressBOL();
         void pressACT();
         void pressESC();
         void pressUP();
         void pressDOWN();
         void escToMain();
+        bool hasTempExpired();
 };
 #endif

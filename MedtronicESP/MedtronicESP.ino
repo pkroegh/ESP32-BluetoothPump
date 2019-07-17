@@ -1,9 +1,8 @@
-// Librarys
 //************************************************************************************
+// Librarys
 #include <Arduino.h>
-#include "BluetoothInterface.h"
+#include "BLEInterface.h"
 #include "PumpInterface.h"
-#include "MakeLifeEasy.h"
 //************************************************************************************
 #define doDebug true
 #ifdef doDebug
@@ -14,30 +13,14 @@
 #define uS_TO_S_FACTOR 1000000
 #define min_to_ms 60000
 
-const String ESP_battery = "e=";
-const String ESP_wake = "w=";
-const String ESP_temp = "t=";
-const String ESP_sleep = "s";
+#define cooldownTime 1
 
-const String APS_ping = "P";
-const String APS_temp = "T=";
-const String APS_wake = "W=";
-const String APS_sleep = "S";
-const String comm_variable1 = ":0=";
-
-#define handshakeInterval 5000 //Milliseconds between handshake attempt
-#define resetTimeScaler 2
+bool sleepConfirmed = false;
 
 // Password for accepting commands
-const String keyword = "dHyr7823Bh"; // Device password
-
+String password = "123456"; // Device password
 // Bluetooth device name
-const String deviceName = "MedtronicESP"; // Device name
-uint8_t wakeInterval = 1;
-bool handshakingCompleted = false;
-uint64_t lastMessageTime;
-uint64_t wakeTime;
-uint64_t currentMillis;
+String deviceName = "MedESP"; // Device name
 //************************************************************************************
 // RTC data variables (Persistent variables)
 RTC_DATA_ATTR bool pumpOn = true;
@@ -45,143 +28,165 @@ RTC_DATA_ATTR float tempBasal; // Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration; // Duration of temp basal, in min.
 RTC_DATA_ATTR bool tempActive = false;
 RTC_DATA_ATTR uint64_t tempStart; // Temp start time
+float bolusSet = 0;
 //************************************************************************************
 // Library instance initialization
-PumpInterface pump;
-BluetoothInterface MedBlue;
+BLEInterface ble(&deviceName, &messageHandler);
+PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart);
 //************************************************************************************
 // Setup
 void setup() {
     #ifdef doDebug
         Serial.begin(serialBaud);
     #endif
-    wakeTime = millis();
     // Start AndroidAPS communication
+    ble.begin(doDebug);
     pump.begin(15,14,32,27,33); // BOL, ACT, ESC, UP, DOWN
-    MedBlue.begin(deviceName, true);
 }
 //************************************************************************************
 // Main loop
 void loop() {
-    currentMillis = millis();
-    handshake();
-    pump.updateTime(currentMillis);
-    processMessage(MedBlue.getMessage());
-    #ifdef doDebug
-        serialAction();
-    #endif
+
 }
 //************************************************************************************
-// Handshake with AndroidAPS
-void handshake() {
-    if (!handshakingCompleted && ((currentMillis - lastMessageTime) 
-        >= handshakeInterval)) {
-        #ifdef doDebug
-            Serial.println("Handshaking!..."); 
-        #endif
-        sendWake();
-        lastMessageTime = millis();
+// New message callback for BLEInterface
+void messageHandler(String message) {
+    if (message.indexOf(password) == 0) {
+        if (doDebug) {
+            Serial.println("Correct password!");
+        }
+        message.remove(0,password.length() + 1);
+        Serial.print("Message is: ");
+        Serial.println(message);
+    } else {
+        gotWrongPassword();
     }
-    if (handshakingCompleted && (currentMillis - wakeTime) 
-        >= (wakeInterval * min_to_ms * resetTimeScaler)) { //AndroidAPS didn't connect, reset
-        handshakingCompleted = false;
-        #ifdef doDebug
-            Serial.println("Resetting handshake");
-        #endif
-    }
-}
-// Process message from bluetooth
-void processMessage(String command) {
-    if (command == "") { return; }
-    #ifdef doDebug
-        Serial.print("Got BT string: "); 
-        Serial.print(command);
-    #endif
-    if (command.indexOf(keyword) == 0) {
-        #ifdef doDebug
-            Serial.println(" - Correct password"); 
-        #endif
-        if (command.indexOf(APS_ping) >= 0) {
-            handshakingCompleted = true;
+    char action = message.charAt(0);
+    Serial.print("At action: ");
+    Serial.println(action);
+    switch (action) {
+        case ble.pingAPS:
             gotPing();
-        } else if (command.indexOf(APS_temp) >= 0) {
-            updateTemp(command);
-        } else if (command.indexOf(APS_wake) >= 0) {
-            updateWakeTimer(command);
-        } else if (command.indexOf(APS_sleep) >= 0) {
-            sleepNow();
-        }
-    } 
-    #ifdef doDebug
-        else {
-            Serial.println(" - Wrong password");
-        }
-    #endif
+        break;
+        case ble.tempAPS:
+            gotTemp(message);
+        break;
+        case ble.bolusAPS:
+            gotBolus(message);
+        break;
+        case ble.sleepAPS:
+            gotSleep(message);
+        break;
+    }
 }
 // Ping message, send battery status
 void gotPing() {
 
-
-
-    MedBlue.sendMessage("e=100");
-    #ifdef doDebug
-        Serial.println("Done handshaking");
-    #endif
+    ble.sendBattery(100);
+}
+// Deliver bolus
+void gotBolus(String command) {
+    float bolus = getFloatfromInsideStr(command, String(ble.bolusAPS) + "=", String(ble.endAPS));
+    if (bolusSet != bolus) {
+        bolusSet = bolus;
+        #ifdef doDebug
+            Serial.println("Setting bolus.");
+        #endif
+        pump.setBolus(bolus);
+    } else {
+        #ifdef doDebug
+            Serial.println("Bolus already set.");
+        #endif
+    }
+    ble.sendBolus(bolus);
 }
 // Temp command
-void updateTemp(String command) {
-    if (command.indexOf("null") >= 0) {
-        cancelTempBasal();
+void gotTemp(String command) {
+    float basalRate = getFloatfromInsideStr(command, String(ble.tempAPS) + "=", String(ble.endAPS));
+    uint8_t duration = getIntfromInsideStr(command, String(ble.comm_variable) + "=", String(ble.endAPS));
+    if (tempBasal != basalRate) {
+        tempBasal = basalRate;
+        if (tempBasal <= 0.0) {
+            #ifdef doDebug
+                Serial.println("Canceling temp.");
+            #endif
+            pump.cancelTemp();
+        } else {
+            #ifdef doDebug
+                Serial.println("Setting new temp.");
+            #endif
+            pump.setTemp(basalRate, duration);
+        } 
     } else {
-        newTempBasal(command);
-    }
-}
-// Isolate temp basal rate and duration
-void newTempBasal(String command) {
-    if (command.length() > 2) {
-        float basalRate = getFloatfromStr(command, APS_temp, 4);
-        uint8_t duration = getIntfromStr(command, comm_variable1, 3);
         #ifdef doDebug
-            newTempDebug(basalRate, duration);
+            Serial.println("Temp already set.");
         #endif
-        pump.setTemp(basalRate, duration);
     }
-    command = ESP_temp;
-    if (!tempActive) { command.concat("null"); } 
-    else {
-        command.concat(tempBasal);
-        command.concat(comm_variable1);
-        command.concat(tempDuration);
-    }
-    MedBlue.sendMessage(command);
-}
-// Return to basal rate
-void cancelTempBasal() {
-    pump.cancelTemp();
-}
-// Update timer
-void updateWakeTimer(String command) {
-    wakeInterval = getIntfromStr(command, APS_wake, 1);
-    sendWake();
-}
-// Send wake message
-void sendWake() {
-    String command = ESP_wake;
-    command.concat(wakeInterval);
-    MedBlue.sendMessage(command);
+    ble.sendTemp(basalRate, duration);
 }
 // Send sleep message and go to sleep
-void sleepNow() {
-    MedBlue.sendMessage(ESP_sleep);
-    delay(100); // Wait a short time to make sure message was sendt before shutting down
+void gotSleep(String command) {
+    uint8_t wakeInterval = getIntfromInsideStr(command, String(ble.sleepAPS) + "=", String(ble.endAPS));
+    ble.sendSleep(wakeInterval);
     #ifdef doDebug
         sleepNowDebug(wakeInterval); 
     #endif
-    MedBlue.end();
-    esp_sleep_enable_timer_wakeup(wakeInterval * M_TO_uS_FACTOR);
+    if (sleepConfirmed) {
+        sleepESP(wakeInterval);
+    } else {
+        sleepConfirmed = true;
+    }
+}
+// Put ESP to sleep
+void sleepESP(uint8_t sleepTime) {
+    ble.end();
+    esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR);
     esp_deep_sleep_start();
 }
+
+void gotWrongPassword() {
+    ble.end();
+    sleepESP(cooldownTime);
+}
+/*
+// Isolate value from string, as int (32bit)
+int32_t getIntfromStr(String inputString, String leadingString, 
+                        uint8_t sizeOfVariable) {
+    //Example string: "getBasalRate rate: 0.9 duration: 30"
+    //Isolate 0.9
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    //Example string: "0.9 duration: 30"
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toInt();
+}
+// Isolate value from string, as float
+float getFloatfromStr(String inputString, String leadingString, 
+                        uint8_t sizeOfVariable) {
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    if (inputString.length() != sizeOfVariable) {
+        inputString.remove(sizeOfVariable, inputString.length());
+    }
+    return inputString.toFloat();
+}
+*/
+// Isolate value from indside string, as int (32bit)
+int32_t getIntfromInsideStr(String inputString, String leadingString, 
+                        String followingString) {
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    inputString.remove(inputString.indexOf(followingString), inputString.length());
+    return inputString.toInt();
+}
+// Isolate a value from indside a string, as float
+float getFloatfromInsideStr(String inputString, String leadingString, 
+                        String followingString) {
+    inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    inputString.remove(inputString.indexOf(followingString), inputString.length());
+    return inputString.toFloat();
+}
 #ifdef doDebug
+    /*
     // Temp serial debug
     void newTempDebug(float basalRate, uint8_t duration) {
         Serial.println("Temporary basal rate update recieved!");
@@ -191,6 +196,7 @@ void sleepNow() {
         Serial.print(duration);
         Serial.println(" min");
     }
+    */
     // Sleep serial debug
     void sleepNowDebug(uint8_t duration) {
         Serial.println("Going to sleep!");
