@@ -22,15 +22,27 @@ class BLEInterface {
         void (*_callback)(String);
 
         const static char pingAPS = 'P';
-        const static char tempAPS = 'T';
         const static char bolusAPS = 'B';
+        const static char tempAPS = 'T';
         const static char sleepAPS = 'S';
+        const static char comm_variable = '&';
+        const static char endAPS = '!';
+
+        std::string batteryESP = "e";
+        std::string bolusESP = "b";
+        std::string tempESP = "t";
+        std::string sleepESP = "s";
+        std::string binder = "&";
+        std::string equals = "=";
 
         BLEInterface(String *name, void (*callback)(String));
 
         void begin();
         void begin(bool debug);
-        bool sendMessage(String message);
+        void sendBattery(uint8_t battery);
+        void sendBolus(float bolus);
+        void sendTemp(float basalRate, uint8_t duration);
+        void sendSleep(uint8_t sleepTime);
         void end();
 
     private:
@@ -39,6 +51,8 @@ class BLEInterface {
         BLECharacteristic *_pOutputCharacteristic; // Write charac pointer
 
         String *_name;
+
+        bool sendMessage(std::string message);
 
         void setupBLE();
         void stopBLE();

@@ -17,25 +17,70 @@ void BLEInterface::begin(bool debug) {
     _debug = debug;
     setupBLE();
 }
-// Send bluetooth message
-bool BLEInterface::sendMessage(String message) {
-    if (_deviceConnected) {
-        uint8_t size = message.length()+1;
-        char charMessage[size];
-        message.toCharArray(charMessage, size);
-        charMessage[size] = '\0';
-        _pOutputCharacteristic->setValue(charMessage);
-        delay(10);
-        _pOutputCharacteristic->notify(); // Send the value to the app!
-        delay(10);
-        if (_debug) {
-            Serial.print("*** Sent string: ");
-            Serial.println(message);
-        }
-        return true;
+// Send battery status to Android
+void BLEInterface::sendBattery(uint8_t battery) {
+    std::string message = batteryESP;
+    message += equals;
+    char charBattery[4];
+    itoa(battery,charBattery,10);
+    message += charBattery;
+    while(!sendMessage(message)) {
+        #ifdef doDebug
+            Serial.println("Failed to send message, retrying...");
+        #endif
     }
-    return false;
 }
+
+// Send bolus to Android
+void BLEInterface::sendBolus(float bolus) {
+    std::string message = bolusESP;
+    message += equals;
+    char charBolus[4];
+    dtostrf(bolus, 4, 2, charBolus);  
+    message += charBolus;
+    message += '\0';
+    while(!sendMessage(message)) {
+        #ifdef doDebug
+            Serial.println("Failed to send message, retrying...");
+        #endif
+    }
+}
+// Send temp to Android
+void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
+    std::string message = tempESP;
+    message += equals;
+    if (basalRate != 0) {
+        char charBasal[4];
+        dtostrf(basalRate, 4, 2, charBasal);  
+        message += charBasal;  
+        message += binder;
+        message += equals;
+        char charDuration[4];
+        itoa(duration,charDuration,10);
+        message += charDuration;
+    } else {
+        message += "null";
+    }
+    while(!sendMessage(message)) {
+        #ifdef doDebug
+            Serial.println("Failed to send message, retrying...");
+        #endif
+    }
+}
+// Send sleep to Android
+void BLEInterface::sendSleep(uint8_t sleepTime) {
+    std::string message = sleepESP;
+    message += equals;
+    char charSleep[4];
+    itoa(sleepTime,charSleep,10);
+    message += charSleep;
+    while(!sendMessage(message)) {
+        #ifdef doDebug
+            Serial.println("Failed to send message, retrying...");
+        #endif
+    }
+}
+// Stop BLE
 void BLEInterface::end() {
     stopBLE();
 }
@@ -77,8 +122,25 @@ void BLEInterface::setupBLE() {
 }
 // Stop bluetooth
 void BLEInterface::stopBLE() {
+    _pOutputCharacteristic->notify();
+    long timerStart = millis();
     if (_debug) {
         Serial.println("Stopping BLE");
     }
     _pServer->getAdvertising()->stop();
+}
+// Send bluetooth message
+bool BLEInterface::sendMessage(std::string message) {
+    if (_deviceConnected) {
+        _pOutputCharacteristic->setValue(message);
+        delay(10);
+        _pOutputCharacteristic->notify(); // Send the value to the app!
+        delay(10);
+        if (_debug) {
+            Serial.print("*** Sent string: ");
+            Serial.println(message.c_str());
+        }
+        return true;
+    }
+    return false;
 }
