@@ -149,7 +149,7 @@ bool PumpInterface::debug_hardware(char action) {
 //************************************************************************************
 // Press BOL on pump
 void PumpInterface::pressBOL() {
-    delay(press_delay);
+    //delay(press_delay);
     digitalWrite(BOL, HIGH);
     delay(press_time);
     digitalWrite(BOL, LOW);
@@ -157,7 +157,7 @@ void PumpInterface::pressBOL() {
 }
 // Press ACT on pump
 void PumpInterface::pressACT() {
-    delay(press_delay);
+    //delay(press_delay);
     digitalWrite(ACT, HIGH);
     delay(press_time);
     digitalWrite(ACT, LOW);
@@ -165,7 +165,7 @@ void PumpInterface::pressACT() {
 }
 // Press ESC on pump
 void PumpInterface::pressESC() {
-    delay(press_delay);
+    //delay(press_delay);
     digitalWrite(ESC, HIGH);
     delay(press_time*4);
     digitalWrite(ESC, LOW);
@@ -173,7 +173,7 @@ void PumpInterface::pressESC() {
 }
 // Press UP on pump
 void PumpInterface::pressUP() {
-    delay(press_delay);
+    //delay(press_delay);
     digitalWrite(UP, HIGH);
     delay(press_time);
     digitalWrite(UP, LOW);
@@ -181,7 +181,7 @@ void PumpInterface::pressUP() {
 }
 // Press DOWN on pump
 void PumpInterface::pressDOWN() {
-    delay(press_delay);
+    //delay(press_delay);
     digitalWrite(DOWN, HIGH);
     delay(press_time);
     digitalWrite(DOWN, LOW);
