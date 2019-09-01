@@ -35,10 +35,10 @@ void BLEInterface::sendBattery(uint8_t battery) {
 void BLEInterface::sendBolus(float bolus) {
     std::string message = bolusESP;
     message += equals;
-    char charBolus[4];
+    char charBolus[5];
     dtostrf(bolus, 4, 2, charBolus);  
     message += charBolus;
-    message += '\0';
+    //message += '\0';
     while(!sendMessage(message)) {
         #ifdef doDebug
             Serial.println("Failed to send message, retrying...");
@@ -50,7 +50,7 @@ void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
     std::string message = tempESP;
     message += equals;
     if (basalRate != 0) {
-        char charBasal[4];
+        char charBasal[5];
         dtostrf(basalRate, 4, 2, charBasal);  
         message += charBasal;  
         message += binder;
