@@ -27,7 +27,6 @@ Clone this repository and open the ```.ino``` file. Select the ESP32 board in th
 
 To connect the ESP32 to the Medtronic pump, we prealed off the plastic cover that sits above the buttons. This reveals a PCB with six traces. One trace touching the outer part of all button pads and five seperate trace that touch the each of the five buttons. We soldered one wire to the common trace and five seperate wires to the remaining traces. For each of the button wires we connected the common wire to pin six and the button wire to pin four of a AQV21 solid state relay PhotoMOS. This chips is a type of optocoupler using CMOS technology. (As long as the chip features a galvanig isolation between the relay and relay activation diode, it should work for the application). The galvanig isolation makes sure that the ESP32 and pump power supplies remain seperate. Pin two of the AQV21 we connected to a GND of the ESP32 and the AQV21 pin one we connected to the ESP32 digital output in the following order:
 
-* ESP pin -> Pump button
 * Pin 15 -> Bolus button
 * Pin 14 -> ACT button
 * Pin 32 -> Escape button
