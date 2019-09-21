@@ -22,8 +22,8 @@
 #define defaultUP 4
 #define defualtDOWN 5
 
-#define press_time 50 // Time from press to release
-#define press_delay 200 // Time between presses
+#define press_time 100 // Time from press to release
+#define press_delay 300 // Time between presses
 
 #define durationStepInterval 30
 #define tempBasalInterval 0.025
