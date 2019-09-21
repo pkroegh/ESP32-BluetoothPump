@@ -25,13 +25,13 @@ Clone this repository and open the ```.ino``` file. Select the ESP32 board in th
 
 **Setting up the physical interface**
 
-To connect the ESP32 to the Medtronic pump, we prealed off the plastic cover that sits above the buttons. This reveals a PCB with six traces. One trace touching the outer part of all button pads and five seperate trace that touch the each of the five buttons. We soldered one wire to the common trace and five seperate wires to the remaining traces. For each of the button wires we connected the common wire to pin six and the button wire to pin four of a AQV21 solid state relay PhotoMOS. This chips is a type of optocoupler using CMOS technology. (As long as the chip features a galvanig isolation between the relay and relay activation diode, it should work for the application). The galvanig isolation makes sure that the ESP32 and pump power supplies remain seperate. Pin two of the AQV21 we connected to a GND of the ESP32 and the AQV21 pin one we connected to the ESP32 digital output in the following order:
+To connect the ESP32 to the Medtronic pump, we prealed off the plastic cover that sits above the buttons. This reveals a PCB with six traces. One trace touching the outer part of all button pads and five seperate trace that touch the each of the five buttons. We soldered one wire to the common trace and five seperate wires to the remaining traces. For each of the button wires we connected the common wire to pin six and the button wire to pin four of a AQV21 solid state relay PhotoMOS. This chips is a type of optocoupler using CMOS technology. (As long as the chip features a galvanig isolation between the relay and relay activation diode, it should work for the application). The galvanig isolation makes sure that the ESP32 and pump power supplies remain seperate. Pin two of the five AQV21 we connected to a GND of the ESP32. For each of the five AQV21 we connected pin one of the AQV21 to a digital output from the ESP32 in the following order:
 
-* Pin 15 -> Bolus button
-* Pin 14 -> ACT button
-* Pin 32 -> Escape button
-* Pin 27 -> Up button
-* Pin 33 -> Down button
+* Pin 15 -> 1. AQV21 -> Bolus button
+* Pin 14 -> 2. AQV21 -> ACT button
+* Pin 32 -> 3. AQV21 -> Escape button
+* Pin 27 -> 4. AQV21 -> Up button
+* Pin 33 -> 5. AQV21 -> Down button
           
 (This method of interfacing with the pump is not the best of ways, but functional nevertheless. We would love to know if you come up with a smarter way of interfacing with the pump).
 
