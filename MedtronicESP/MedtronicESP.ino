@@ -4,44 +4,43 @@
 #include "BLEInterface.h"
 #include "PumpInterface.h"
 //************************************************************************************
-#define doDebug true
+#define doDebug true // Set to true to enable serial debug.
 #ifdef doDebug
-    #define serialBaud 115200
+    #define serialBaud 115200 // Serial baud rate for debug.
 #endif
-
-#define M_TO_uS_FACTOR 60000000
-#define uS_TO_S_FACTOR 1000000
-#define min_to_ms 60000
-
-#define cooldownTime 1
-
-bool sleepConfirmed = false;
-
-// Password for accepting commands
-String password = "123456"; // Device password
+#define M_TO_uS_FACTOR 60000000 // Minuts to microseconds factor.
+#define uS_TO_S_FACTOR 1000000 // Micro seconds to seconds factor.
+#define min_to_ms 60000 // Min to milliseconds factor.
+#define cooldownTime 1 // Minuts to sleep on recieving a command with wrong password.
+bool sleepConfirmed = false; // Variable to check if sleep is confirmed by AndroidAPS. Fixes a bug where ESP doesn't sleep after getting sleep command.
 // Bluetooth device name
-String deviceName = "MedESP"; // Device name
+String deviceName = "MedESP"; // Device name, this is used in AndroidAPS to identify the bluetooth device. If changed here, it needs to be changed in AndroidAPS before compiling and installing AndroidAPS.
+//************************************************************************************
+// User settable variables!
+// Password for accepting commands (SHOULD BE CHANGE BEFORE USE!)
+String password = "123456"; // Device password, is used to ensure that it is only AndroidAPS that can set commands. This should be changed here, and then set in the plugin settings menu in AndroidAPS.
 //************************************************************************************
 // RTC data variables (Persistent variables)
-RTC_DATA_ATTR bool pumpOn = true;
+RTC_DATA_ATTR bool pumpOn = true; // Pump status, set to off when basal delivery is stopped.
 RTC_DATA_ATTR float tempBasal; // Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration; // Duration of temp basal, in min.
-RTC_DATA_ATTR bool tempActive = false;
+RTC_DATA_ATTR bool tempActive = false; // Temp basal status, true when a temp basal is set.
 RTC_DATA_ATTR uint64_t tempStart; // Temp start time
-float bolusSet = 0;
+float bolusSet = 0; // Amount of bolus to set.
 //************************************************************************************
 // Library instance initialization
-BLEInterface ble(&deviceName, &messageHandler);
-PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart);
+BLEInterface ble(&deviceName, &messageHandler); // Instance initializer for ble interface.
+PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart); // Instance initializer for physical hardware interface.
 //************************************************************************************
 // Setup
 void setup() {
     #ifdef doDebug
-        Serial.begin(serialBaud);
+        Serial.begin(serialBaud); // Starts serial communication for debug.
     #endif
     // Start AndroidAPS communication
-    ble.begin(doDebug);
-    pump.begin(15,14,32,27,33); // BOL, ACT, ESC, UP, DOWN
+    ble.begin(doDebug); // Starts ble.
+    pump.begin(15,14,32,27,33); // Starts and sets pinout for pump buttons. BOL, ACT, ESC, UP, DOWN
+    // To change output pins to pump button relays, change in above line.
 }
 //************************************************************************************
 // Main loop
@@ -51,102 +50,105 @@ void loop() {
 //************************************************************************************
 // New message callback for BLEInterface
 void messageHandler(String message) {
-    if (message.indexOf(password) == 0) {
+    if (message.indexOf(password) == 0) { // Check if password is correct.
         if (doDebug) {
             Serial.println("Correct password!");
         }
-        message.remove(0,password.length() + 1);
-        Serial.print("Message is: ");
-        Serial.println(message);
-    } else {
-        gotWrongPassword();
+        message.remove(0,password.length() + 1); // Remove password from message string.
+        if (doDebug) {
+            Serial.print("Message is: ");
+            Serial.println(message); // Print message string.
+        }
+    } else { // Sleep the ESP on wrong password.
+        sleepESP(cooldownTime); // Sleep the ESP
     }
-    char action = message.charAt(0);
+    char action = message.charAt(0); // Get the char at the first position of the message. This will be the command to be set.
     Serial.print("At action: ");
     Serial.println(action);
-    switch (action) {
-        case ble.pingAPS:
+    switch (action) { // Check what action is to be set.
+        case ble.pingAPS: // Ping action -> Send battery status.
             gotPing();
         break;
-        case ble.tempAPS:
+        case ble.tempAPS: // Temp action -> Set temp in pump.
             gotTemp(message);
         break;
-        case ble.bolusAPS:
+        case ble.bolusAPS: // Bolus action -> Make pump deliver bolus.
             gotBolus(message);
         break;
-        case ble.sleepAPS:
+        case ble.sleepAPS: // Sleep action -> Put ESP32 to sleep.
             gotSleep(message);
         break;
     }
 }
 // Ping message, send battery status
 void gotPing() {
-
+    // Not yet implemented. Should check voltage level of a connected battery and send battery status.
     ble.sendBattery(100);
 }
 // Deliver bolus
 void gotBolus(String command) {
+    // Cut the bolus value from the message string.
     float bolus = getFloatfromInsideStr(command, String(ble.bolusAPS) + "=", String(ble.endAPS));
-    if (bolusSet != bolus) {
+    if (bolusSet != bolus) { // Check if bolus is already delivered - Should always be false, prevents to bolus deliveries on same wake cycle.
         bolusSet = bolus;
         #ifdef doDebug
             Serial.println("Setting bolus.");
         #endif
-        pump.setBolus(bolus);
+        pump.setBolus(bolus); // Send bolus to pump interface.
     } else {
         #ifdef doDebug
             Serial.println("Bolus already set.");
         #endif
     }
-    ble.sendBolus(bolus);
+    ble.sendBolus(bolus); // Echo the command back to AndroidAPS to confirm the bolus has been set.
 }
 // Temp command
 void gotTemp(String command) {
+    // Cut temp basal value from message string.
     float basalRate = getFloatfromInsideStr(command, String(ble.tempAPS) + "=", String(ble.endAPS));
+    // Cut temp duration from message string.
     uint8_t duration = getIntfromInsideStr(command, String(ble.comm_variable) + "=", String(ble.endAPS));
-    if (tempBasal != basalRate) {
+    if (tempBasal != basalRate) { // Check if temp is not already set. Will be false if temp was set in last wake cycle.
         tempBasal = basalRate;
-        if (tempBasal <= 0.0) {
+        if (tempBasal <= 0.0) { // Check if temp value is zero -> Pump should stop current temp delivery.
             #ifdef doDebug
                 Serial.println("Canceling temp.");
             #endif
-            pump.cancelTemp();
+            pump.cancelTemp(); // Cancel the current temp.
         } else {
             #ifdef doDebug
                 Serial.println("Setting new temp.");
             #endif
-            pump.setTemp(basalRate, duration);
+            pump.setTemp(basalRate, duration); // Set the new temp in the pump.
         } 
     } else {
         #ifdef doDebug
             Serial.println("Temp already set.");
         #endif
     }
-    ble.sendTemp(basalRate, duration);
+    ble.sendTemp(basalRate, duration); // Echo command back to confirm it is set.
 }
 // Send sleep message and go to sleep
 void gotSleep(String command) {
-    uint8_t wakeInterval = getIntfromInsideStr(command, String(ble.sleepAPS) + "=", String(ble.endAPS));
-    ble.sendSleep(wakeInterval);
+    // Cut the number of minuts to sleep from the message string.
+    uint8_t wakeInterval = getIntfromInsideStr(command, String(ble.sleepAPS) + "=", String(ble.endAPS)); 
+    ble.sendSleep(wakeInterval); // Echo command back to AndroidAPS.
     #ifdef doDebug
-        sleepNowDebug(wakeInterval); 
+        sleepNowDebug(wakeInterval); // Print sleep time.
     #endif
     if (sleepConfirmed) {
-        sleepESP(wakeInterval);
-    } else {
+        sleepESP(wakeInterval); // Sleep the ESP.
+    } else { 
         sleepConfirmed = true;
     }
+    // AndroidAPS fails to read ble status if ESP sleeps as soon as it gets the sleep command. 
+    // Therefore AndroidAPS sends the sleep command again when it gets the sleep conformation from the ESP.
 }
 // Put ESP to sleep
 void sleepESP(uint8_t sleepTime) {
-    ble.end();
-    esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR);
-    esp_deep_sleep_start();
-}
-
-void gotWrongPassword() {
-    ble.end();
-    sleepESP(cooldownTime);
+    ble.end(); // Stop the ble communication.
+    esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR); // Set the timer to wake the ESP after the sleep.
+    esp_deep_sleep_start(); // Sleep the ESP.
 }
 /*
 // Isolate value from string, as int (32bit)
@@ -174,16 +176,20 @@ float getFloatfromStr(String inputString, String leadingString,
 // Isolate value from indside string, as int (32bit)
 int32_t getIntfromInsideStr(String inputString, String leadingString, 
                         String followingString) {
+    // Find the character before desired value, remove everything up to the desired value.
     inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    // Find the character after the desired value, remove everything after the desired balue.
     inputString.remove(inputString.indexOf(followingString), inputString.length());
-    return inputString.toInt();
+    return inputString.toInt(); // Return value as int.
 }
 // Isolate a value from indside a string, as float
 float getFloatfromInsideStr(String inputString, String leadingString, 
                         String followingString) {
+    // Find the character before desired value, remove everything up to the desired value.
     inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
+    // Find the character after the desired value, remove everything after the desired balue.
     inputString.remove(inputString.indexOf(followingString), inputString.length());
-    return inputString.toFloat();
+    return inputString.toFloat(); // Return value as float.
 }
 #ifdef doDebug
     /*

@@ -5,12 +5,12 @@
 //************************************************************************************
 // Setup pinout
 BLEInterface::BLEInterface(String *name, void (*callback)(String)) {
-    _name = name;
-    _callback = callback;
+    _name = name; // Name of ble instance - The name that other devices will see.
+    _callback = callback; // Callback function for handeling new messages.
 }
 // Start BLE
 void BLEInterface::begin() {
-    setupBLE();
+    setupBLE(); // Start the ble service.
 }
 // Start BLE with debug
 void BLEInterface::begin(bool debug) {

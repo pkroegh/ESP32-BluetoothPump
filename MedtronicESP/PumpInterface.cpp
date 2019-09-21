@@ -6,12 +6,12 @@
 // Setup pinout
 PumpInterface::PumpInterface(bool *pumpOn, uint8_t *tempDuration,
                              bool *tempActive, uint64_t *tempStart) {
-    _pumpOn = pumpOn;
+    _pumpOn = pumpOn; // Set pointers to global values.
     _tempDuration = tempDuration;
     _tempActive = tempActive;
     _tempStart = tempStart;
 
-    BOL = defaultBOL;
+    BOL = defaultBOL; // Set pinouts.
     ACT = defaultACT;
     ESC = defaultESC;
     UP = defaultUP;
@@ -19,7 +19,7 @@ PumpInterface::PumpInterface(bool *pumpOn, uint8_t *tempDuration,
 }
 // Start pump interface, on default pinout
 void PumpInterface::begin() {
-    pinMode(BOL, OUTPUT);
+    pinMode(BOL, OUTPUT); // Set the pins to output.
     pinMode(ACT, OUTPUT);
     pinMode(ESC, OUTPUT);
     pinMode(UP, OUTPUT);
@@ -44,13 +44,13 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
 void PumpInterface::setTemp(float basalRate, uint8_t duration) {
     _tempBasal = basalRate;
     *_tempDuration = duration;
-    if (*_tempActive) {
+    if (*_tempActive) { // Check if temp is active - If it is, cancel it.
         if (!hasTempExpired()) {
             cancelTemp();
         }
         *_tempActive = false;
     }
-    pressACT();
+    pressACT(); 
     for (uint8_t i = 0; i < 3; i++) {
         pressDOWN();
     }
@@ -79,7 +79,7 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
 // Cancel temp basal rate
 void PumpInterface::cancelTemp() {
     if (*_tempActive) {
-        if (hasTempExpired()) {
+        if (hasTempExpired()) { // Check if temp has expired (Temp time has run out).
             return;
         }
         pressACT();
@@ -109,7 +109,7 @@ void PumpInterface::setBolus(float amount) {
 // Stop pump
 bool PumpInterface::stopPump() {
     if (*_pumpOn) {
-
+        // Not yet implemented.
 
 
 
@@ -123,7 +123,7 @@ bool PumpInterface::stopPump() {
 // Start pump
 bool PumpInterface::startPump() {
     if (!*_pumpOn) {
-
+        // Not yet implemented.
 
 
 
@@ -134,7 +134,7 @@ bool PumpInterface::startPump() {
     }
 }
 // Debug hardware pinout
-bool PumpInterface::debug_hardware(char action) {
+bool PumpInterface::debug_hardware(char action) { // Debug function for testing hardware connectivity.
     switch (action) {
         case 'b': pressBOL(); return true; break;
         case 'a': pressACT(); return true; break;
