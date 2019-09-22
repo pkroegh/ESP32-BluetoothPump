@@ -65,9 +65,21 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
     if (basalRate < tempBasalInterval) {
         pressUP();
         pressDOWN();
-    } else {
-        uint8_t tempSteps = basalRate / tempBasalInterval;
-        for (uint8_t i = 0; i < tempSteps; i++) {
+    } else {    
+        float tempAboveOne = basalRate - 1;
+        uint8_t tempStepBelowOne;
+        uint8_t tempStepAboveOne;
+        if (tempAboveOne > 0) { // Medtronic MMT-554 uses 0.025 incremnt below 1U/h and 0.05 above.
+            tempStepBelowOne = 1 / tempBasalInterval;
+            tempStepAboveOne = tempAboveOne / bolusStepInterval;
+        } else {
+            tempStepBelowOne = basalRate / tempBasalInterval;
+            tempStepAboveOne = 0;
+        }
+        for (uint8_t i = 0; i < tempStepBelowOne; i++) {
+            pressUP();
+        }
+        for (uint8_t i = 0; i < tempStepAboveOne; i++) {
             pressUP();
         }
     }

@@ -26,8 +26,10 @@
 #define press_delay 300 // Time between presses (Has to be 300 milliseconds)
 
 #define durationStepInterval 30
-#define tempBasalInterval 0.025
-#define bolusStepInterval 0.05
+#define tempBasalInterval 0.025 // Increment between each press when setting temp basal.
+// For Medtronic MMT-554 temp basal interval is 0.025 in range 0 to 1U/h.
+// Above 1U/h interval is 0.05.
+#define bolusStepInterval 0.05 // Increment between each press when setting bolus.
 
 class PumpInterface {
     public:
