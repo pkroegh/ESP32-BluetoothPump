@@ -25,11 +25,15 @@
 #define press_time 100 // Time from press to release (Has to be 100 milliseconds)
 #define press_delay 300 // Time between presses (Has to be 300 milliseconds)
 
-#define durationStepInterval 30
-#define tempBasalInterval 0.025 // Increment between each press when setting temp basal.
+const static uint8_t durationStepInterval = 30;
+const static float tempBasalInterval = 0.025; // Increment between each press when setting temp basal.
+const static float tempBasalIntervalAbove = 0.05;
 // For Medtronic MMT-554 temp basal interval is 0.025 in range 0 to 1U/h.
 // Above 1U/h interval is 0.05.
-#define bolusStepInterval 0.05 // Increment between each press when setting bolus.
+const static float bolusStepInterval = 0.05; // Increment between each press when setting bolus.
+
+const static uint8_t maxBolusSteps = 40; // Maximum allowed bolus steps.
+const static uint8_t maxTempSteps = 100; // Maximum allowed temp steps.
 
 class PumpInterface {
     public:
@@ -39,9 +43,9 @@ class PumpInterface {
         void begin();
         void begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin, 
                    uint8_t UPpin, uint8_t DOWNpin);
-        void setTemp(float basalRate, uint8_t duration);
+        float setTemp(float basalRate, uint8_t duration);
         void cancelTemp();
-        void setBolus(float amount);
+        float setBolus(float amount);
         bool stopPump();
         bool startPump();
 

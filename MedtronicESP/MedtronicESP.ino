@@ -87,6 +87,7 @@ void gotPing() {
 }
 // Deliver bolus
 void gotBolus(String command) {
+    float setBolus = 0;
     // Cut the bolus value from the message string.
     float bolus = getFloatfromInsideStr(command, String(ble.bolusAPS) + "=", String(ble.endAPS));
     if (bolusSet != bolus) { // Check if bolus is already delivered - Should always be false, prevents to bolus deliveries on same wake cycle.
@@ -94,16 +95,20 @@ void gotBolus(String command) {
         #ifdef doDebug
             Serial.println("Setting bolus.");
         #endif
-        pump.setBolus(bolus); // Send bolus to pump interface.
+        setBolus = pump.setBolus(bolus); // Send bolus to pump interface.
+        Serial.print("Delivered: ");
+        Serial.print(setBolus);
+        Serial.println(" U");
     } else {
         #ifdef doDebug
             Serial.println("Bolus already set.");
         #endif
     }
-    ble.sendBolus(bolus); // Echo the command back to AndroidAPS to confirm the bolus has been set.
+    ble.sendBolus(setBolus); // Echo the command back to AndroidAPS to confirm the bolus has been set.
 }
 // Temp command
 void gotTemp(String command) {
+    float setBasalRate = 0;
     // Cut temp basal value from message string.
     float basalRate = getFloatfromInsideStr(command, String(ble.tempAPS) + "=", String(ble.endAPS));
     // Cut temp duration from message string.
@@ -119,14 +124,17 @@ void gotTemp(String command) {
             #ifdef doDebug
                 Serial.println("Setting new temp.");
             #endif
-            pump.setTemp(basalRate, duration); // Set the new temp in the pump.
+            setBasalRate = pump.setTemp(basalRate, duration); // Set the new temp in the pump.
+            Serial.print("Set basal to: ");
+            Serial.print(setBasalRate);
+            Serial.println(" U/h");
         } 
     } else {
         #ifdef doDebug
             Serial.println("Temp already set.");
         #endif
     }
-    ble.sendTemp(basalRate, duration); // Echo command back to confirm it is set.
+    ble.sendTemp(setBasalRate, duration); // Echo command back to confirm it is set.
 }
 // Send sleep message and go to sleep
 void gotSleep(String command) {
@@ -189,6 +197,10 @@ float getFloatfromInsideStr(String inputString, String leadingString,
     inputString.remove(0, inputString.indexOf(leadingString) + leadingString.length());
     // Find the character after the desired value, remove everything after the desired balue.
     inputString.remove(inputString.indexOf(followingString), inputString.length());
+    int8_t comma = inputString.indexOf(",");
+    if (comma >= 0) {
+        inputString.setCharAt(comma, '.');
+    }
     return inputString.toFloat(); // Return value as float.
 }
 #ifdef doDebug

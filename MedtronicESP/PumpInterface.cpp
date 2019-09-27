@@ -41,7 +41,8 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
     pinMode(DOWN, OUTPUT);
 }
 // Set a temp basal rate for a duration
-void PumpInterface::setTemp(float basalRate, uint8_t duration) {
+float PumpInterface::setTemp(float basalRate, uint8_t duration) {
+    uint8_t step = 0;
     _tempBasal = basalRate;
     *_tempDuration = duration;
     if (*_tempActive) { // Check if temp is active - If it is, cancel it.
@@ -66,27 +67,41 @@ void PumpInterface::setTemp(float basalRate, uint8_t duration) {
         pressUP();
         pressDOWN();
     } else {    
-        float tempAboveOne = basalRate - 1;
+        float tempAboveOne = basalRate - 1.0;
         uint8_t tempStepBelowOne;
         uint8_t tempStepAboveOne;
         if (tempAboveOne > 0) { // Medtronic MMT-554 uses 0.025 incremnt below 1U/h and 0.05 above.
             tempStepBelowOne = 1 / tempBasalInterval;
-            tempStepAboveOne = tempAboveOne / bolusStepInterval;
+            tempStepAboveOne = tempAboveOne / tempBasalIntervalAbove;
         } else {
             tempStepBelowOne = basalRate / tempBasalInterval;
             tempStepAboveOne = 0;
         }
         for (uint8_t i = 0; i < tempStepBelowOne; i++) {
             pressUP();
+            step++; // Count number of presses.
         }
         for (uint8_t i = 0; i < tempStepAboveOne; i++) {
             pressUP();
+            step++; // Count number of presses.
+            if (step >= maxTempSteps) { // Make sure step is within bonuds.
+                break;
+            }
         }
+    }
+    if (basalRate > 3.55 && step == 91 && basalRate < 3.65) { // ????????????????????????
+        pressUP();
+        step++; // Count number of presses.
     }
     pressACT();
     escToMain();
     *_tempActive = true;
     *_tempStart = millis();
+    if (step > 40) {
+        return (float)(1 + ((step - 40) * tempBasalIntervalAbove));
+    } else {
+        return (float)(step * tempBasalInterval);
+    }
 }
 // Cancel temp basal rate
 void PumpInterface::cancelTemp() {
@@ -106,7 +121,8 @@ void PumpInterface::cancelTemp() {
     }
 }
 // Deliver bolus
-void PumpInterface::setBolus(float amount) {
+float PumpInterface::setBolus(float amount) {
+    uint8_t step = 0;
     for (uint8_t i = 0; i < 2; i++) {
         pressACT();
     }
@@ -115,8 +131,18 @@ void PumpInterface::setBolus(float amount) {
     uint8_t bolusSteps = amount / bolusStepInterval;
     for (uint8_t i = 0; i < bolusSteps; i++) {
         pressUP();
+        step++; // Count number of presses.
+        if (step >= maxBolusSteps) { // Make sure step is within bonuds.
+            break;
+        }
     }
     pressACT();
+
+    Serial.print("At bolus, pressed UP ");
+    Serial.print(step);
+    Serial.println(" times.");
+
+    return (float)(step * bolusStepInterval);
 }
 // Stop pump
 bool PumpInterface::stopPump() {
