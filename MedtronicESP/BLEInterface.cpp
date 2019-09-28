@@ -134,7 +134,7 @@ bool BLEInterface::sendMessage(std::string message) {
     if (_deviceConnected) {
         _pOutputCharacteristic->setValue(message);
         delay(10);
-        //_pOutputCharacteristic->notify(); // Send the value to the app!
+        _pOutputCharacteristic->notify(); // Send the value to the app!
         delay(10);
         if (_debug) {
             Serial.print("*** Sent string: ");
