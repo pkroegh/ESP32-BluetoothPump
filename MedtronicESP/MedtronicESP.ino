@@ -1,6 +1,7 @@
 //************************************************************************************
 // Librarys
 #include <Arduino.h>
+#include "NoSleepyTimer.h"
 #include "BLEInterface.h"
 #include "PumpInterface.h"
 //************************************************************************************
@@ -23,14 +24,15 @@ String password = "123456"; // Device password, is used to ensure that it is onl
 // RTC data variables (Persistent variables)
 RTC_DATA_ATTR bool pumpOn = true; // Pump status, set to off when basal delivery is stopped.
 RTC_DATA_ATTR float tempBasal; // Temp basal rate, in U/h
-RTC_DATA_ATTR uint8_t tempDuration; // Duration of temp basal, in min.
+RTC_DATA_ATTR uint8_t tempDuration = 0; // Duration of temp basal, in min.
 RTC_DATA_ATTR bool tempActive = false; // Temp basal status, true when a temp basal is set.
-RTC_DATA_ATTR uint64_t tempStart; // Temp start time
+RTC_DATA_ATTR uint32_t tempStart = 0; // Temp start time
+RTC_DATA_ATTR uint32_t timeSinceRun = 0; // Millis is reset on each sleep, store systemtime in this value.
 float bolusSet = 0; // Amount of bolus to set.
 //************************************************************************************
 // Library instance initialization
 BLEInterface ble(&deviceName, &messageHandler); // Instance initializer for ble interface.
-PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart); // Instance initializer for physical hardware interface.
+PumpInterface pump(&pumpOn, &tempDuration, &tempActive, &tempStart, &timeSinceRun); // Instance initializer for physical hardware interface.
 //************************************************************************************
 // Setup
 void setup() {
@@ -114,12 +116,14 @@ void gotTemp(String command) {
     // Cut temp duration from message string.
     uint8_t duration = getIntfromInsideStr(command, String(ble.comm_variable) + "=", String(ble.endAPS));
     if (tempBasal != basalRate) { // Check if temp is not already set. Will be false if temp was set in last wake cycle.
-        tempBasal = basalRate;
-        if (tempBasal <= 0.0) { // Check if temp value is zero -> Pump should stop current temp delivery.
+        if (basalRate <= 0.0) { // Check if temp value is zero -> Pump should stop current temp delivery.
             #ifdef doDebug
                 Serial.println("Canceling temp.");
             #endif
-            pump.cancelTemp(); // Cancel the current temp.
+            bool confirmed = pump.cancelTemp(); // Cancel the current temp.
+            if (!confirmed) {
+              setBasalRate = 5;
+            }
         } else {
             #ifdef doDebug
                 Serial.println("Setting new temp.");
@@ -129,7 +133,9 @@ void gotTemp(String command) {
             Serial.print(setBasalRate);
             Serial.println(" U/h");
         } 
+        tempBasal = basalRate;
     } else {
+        setBasalRate = basalRate;
         #ifdef doDebug
             Serial.println("Temp already set.");
         #endif
@@ -155,6 +161,7 @@ void gotSleep(String command) {
 // Put ESP to sleep
 void sleepESP(uint8_t sleepTime) {
     ble.end(); // Stop the ble communication.
+    timePrepareSleep(&timeSinceRun, &tempStart, sleepTime);
     esp_sleep_enable_timer_wakeup(sleepTime * M_TO_uS_FACTOR); // Set the timer to wake the ESP after the sleep.
     esp_deep_sleep_start(); // Sleep the ESP.
 }

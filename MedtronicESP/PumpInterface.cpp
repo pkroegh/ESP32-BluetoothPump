@@ -5,11 +5,13 @@
 //************************************************************************************
 // Setup pinout
 PumpInterface::PumpInterface(bool *pumpOn, uint8_t *tempDuration,
-                             bool *tempActive, uint64_t *tempStart) {
+                             bool *tempActive, uint32_t *tempStart, 
+                             uint32_t *timeSinceRun) {
     _pumpOn = pumpOn; // Set pointers to global values.
     _tempDuration = tempDuration;
     _tempActive = tempActive;
     _tempStart = tempStart;
+    _timeSinceRun = timeSinceRun;
 
     BOL = defaultBOL; // Set pinouts.
     ACT = defaultACT;
@@ -42,15 +44,15 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
 }
 // Set a temp basal rate for a duration
 float PumpInterface::setTemp(float basalRate, uint8_t duration) {
-    uint8_t step = 0;
-    _tempBasal = basalRate;
-    *_tempDuration = duration;
     if (*_tempActive) { // Check if temp is active - If it is, cancel it.
         if (!hasTempExpired()) {
             cancelTemp();
         }
         *_tempActive = false;
     }
+    uint8_t step = 0;
+    _tempBasal = basalRate;
+    *_tempDuration = duration;
     pressACT(); 
     for (uint8_t i = 0; i < 3; i++) {
         pressDOWN();
@@ -96,7 +98,7 @@ float PumpInterface::setTemp(float basalRate, uint8_t duration) {
     pressACT();
     escToMain();
     *_tempActive = true;
-    *_tempStart = millis();
+    *_tempStart = timeNow(_timeSinceRun);
     if (step > 40) {
         return (float)(1 + ((step - 40) * tempBasalIntervalAbove));
     } else {
@@ -104,10 +106,11 @@ float PumpInterface::setTemp(float basalRate, uint8_t duration) {
     }
 }
 // Cancel temp basal rate
-void PumpInterface::cancelTemp() {
+bool PumpInterface::cancelTemp() {
     if (*_tempActive) {
         if (hasTempExpired()) { // Check if temp has expired (Temp time has run out).
-            return;
+            Serial.println("Temp has expired");
+            return false;
         }
         pressACT();
         for (uint8_t i = 0; i < 3; i++) {
@@ -118,6 +121,7 @@ void PumpInterface::cancelTemp() {
         pressACT();
         escToMain();
         *_tempActive = false;
+        return true;
     }
 }
 // Deliver bolus
@@ -137,11 +141,6 @@ float PumpInterface::setBolus(float amount) {
         }
     }
     pressACT();
-
-    Serial.print("At bolus, pressed UP ");
-    Serial.print(step);
-    Serial.println(" times.");
-
     return (float)(step * bolusStepInterval);
 }
 // Stop pump
@@ -205,9 +204,9 @@ void PumpInterface::pressACT() {
 void PumpInterface::pressESC() {
     //delay(press_delay);
     digitalWrite(ESC, HIGH);
-    delay(press_time*4);
+    delay(esc_time);
     digitalWrite(ESC, LOW);
-    delay(press_delay);
+    delay(esc_delay);
 }
 // Press UP on pump
 void PumpInterface::pressUP() {
@@ -227,14 +226,38 @@ void PumpInterface::pressDOWN() {
 }
 // Escape from basal menu to main menu
 void PumpInterface::escToMain() {
-    delay(press_delay*4);
+    delay(esc_time);
     for (uint8_t i = 0; i < 2; i++) {
         pressESC();
     }
 }
 bool PumpInterface::hasTempExpired() {
-    if ((millis() - *_tempStart) >= (*_tempDuration * min_to_ms)) {
-            return true;
+    if ((timeNow(_timeSinceRun) - *_tempStart) > getMillisFromDuration(*_tempDuration)) {
+        return true;
+    } else {
+        return false;
     }
-    return false;
+}
+// Convert duratin in min to millis.
+uint32_t PumpInterface::getMillisFromDuration(uint8_t duration) {
+    switch (duration) {
+        case 0:
+            return 0;
+        break;
+        case 30:
+            return min30Millis;
+        break;
+        case 60:
+            return min60Millis;
+        break;
+        case 90:
+            return min90Millis;
+        break;
+        case 120:
+            return min120Millis;
+        break;
+        default:
+            return min30Millis;
+        break;
+    }
 }

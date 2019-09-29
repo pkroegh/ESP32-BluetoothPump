@@ -16,7 +16,7 @@
 
 class BLEInterface {
     public:
-        bool _deviceConnected = true; // Device connectino status
+        bool _deviceConnected = false; // Device connectino status
         bool _debug = false; // Print debug to Serial prompt
 
         void (*_callback)(String);

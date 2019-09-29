@@ -49,7 +49,7 @@ void BLEInterface::sendBolus(float bolus) {
 void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
     std::string message = tempESP;
     message += equals;
-    if (basalRate != 0) {
+    if (basalRate != 0 && basalRate < 4) {
         char charBasal[5];
         dtostrf(basalRate, 4, 2, charBasal);  
         message += charBasal;  
@@ -58,6 +58,8 @@ void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
         char charDuration[4];
         itoa(duration,charDuration,10);
         message += charDuration;
+    } else if (basalRate > 4) {
+        message += "failed";
     } else {
         message += "null";
     }
@@ -134,7 +136,7 @@ bool BLEInterface::sendMessage(std::string message) {
     if (_deviceConnected) {
         _pOutputCharacteristic->setValue(message);
         delay(10);
-        //_pOutputCharacteristic->notify(); // Send the value to the app!
+        _pOutputCharacteristic->notify(); // Send the value to the app!
         delay(10);
         if (_debug) {
             Serial.print("*** Sent string: ");
