@@ -42,3 +42,6 @@ The [modified version of AndroidAPS](https://github.com/pkroegh/AndroidAPS-Bluet
 The  [original AndroidAPS](https://github.com/MilosKozak/AndroidAPS) by MilosKozak.
 
 The [documentation](https://androidaps.readthedocs.io/en/latest/EN/) for AndroidAPS. 
+
+## Disclaimer And Warning
+All information and code described here is intended for informational and educational purposes only. All use of code on this page are at your own risk, and do not use the information or code to make medical decisions.
