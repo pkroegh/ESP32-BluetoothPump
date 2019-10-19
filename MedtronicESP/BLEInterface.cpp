@@ -30,7 +30,6 @@ void BLEInterface::sendBattery(uint8_t battery) {
         #endif
     }
 }
-
 // Send bolus to Android
 void BLEInterface::sendBolus(float bolus) {
     std::string message = bolusESP;
@@ -49,20 +48,14 @@ void BLEInterface::sendBolus(float bolus) {
 void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
     std::string message = tempESP;
     message += equals;
-    if (basalRate != 0 && basalRate < 4) {
-        char charBasal[5];
-        dtostrf(basalRate, 4, 2, charBasal);  
-        message += charBasal;  
-        message += binder;
-        message += equals;
-        char charDuration[4];
-        itoa(duration,charDuration,10);
-        message += charDuration;
-    } else if (basalRate > 4) {
-        message += "failed";
-    } else {
-        message += "null";
-    }
+    char charBasal[6];
+    dtostrf(basalRate, 4, 2, charBasal);
+    message += charBasal;  
+    message += binder;
+    message += equals;
+    char charDuration[4];
+    itoa(duration,charDuration,10);
+    message += charDuration;
     while(!sendMessage(message)) {
         #ifdef doDebug
             Serial.println("Failed to send message, retrying...");

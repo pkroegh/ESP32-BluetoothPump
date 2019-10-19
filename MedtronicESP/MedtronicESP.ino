@@ -23,7 +23,7 @@ String password = "123456"; // Device password, is used to ensure that it is onl
 //************************************************************************************
 // RTC data variables (Persistent variables)
 RTC_DATA_ATTR bool pumpOn = true; // Pump status, set to off when basal delivery is stopped.
-RTC_DATA_ATTR float tempBasal; // Temp basal rate, in U/h
+RTC_DATA_ATTR float tempBasal = -1; // Temp basal rate, in U/h
 RTC_DATA_ATTR uint8_t tempDuration = 0; // Duration of temp basal, in min.
 RTC_DATA_ATTR bool tempActive = false; // Temp basal status, true when a temp basal is set.
 RTC_DATA_ATTR uint32_t tempStart = 0; // Temp start time
@@ -112,17 +112,19 @@ void gotBolus(String command) {
 void gotTemp(String command) {
     float setBasalRate = 0;
     // Cut temp basal value from message string.
-    float basalRate = getFloatfromInsideStr(command, String(ble.tempAPS) + "=", String(ble.endAPS));
+    float basalRate = getFloatfromInsideStr(command, String(ble.tempAPS) + "=", String(ble.comm_variable));
     // Cut temp duration from message string.
     uint8_t duration = getIntfromInsideStr(command, String(ble.comm_variable) + "=", String(ble.endAPS));
     if (tempBasal != basalRate) { // Check if temp is not already set. Will be false if temp was set in last wake cycle.
-        if (basalRate <= 0.0) { // Check if temp value is zero -> Pump should stop current temp delivery.
+        if (basalRate < -0.5) { // Check if temp value is zero -> Pump should stop current temp delivery.
             #ifdef doDebug
                 Serial.println("Canceling temp.");
             #endif
             bool confirmed = pump.cancelTemp(); // Cancel the current temp.
-            if (!confirmed) {
-              setBasalRate = 5;
+            if (confirmed) {
+                setBasalRate = -1.0;
+            } else {
+                setBasalRate = -2.0;
             }
         } else {
             #ifdef doDebug
