@@ -23,11 +23,11 @@
 #define defaultUP 4
 #define defualtDOWN 5
 
-#define press_time 100 // Time from press to release (Has to be 100 milliseconds)
+#define press_time 200 // Time from press to release (Has to be 100 milliseconds)
 #define press_delay 300 // Time between presses (Has to be 300 milliseconds)
 
-#define esc_time 1000
-#define esc_delay 1000
+#define esc_time 200
+#define esc_delay 300
 
 #define min30Millis 1800000
 #define min60Millis 3600000
