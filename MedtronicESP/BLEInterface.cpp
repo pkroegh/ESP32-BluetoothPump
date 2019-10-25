@@ -37,12 +37,12 @@ void BLEInterface::sendBolus(float bolus) {
     char charBolus[5];
     dtostrf(bolus, 4, 2, charBolus);  
     message += charBolus;
-    //message += '\0';
     while(!sendMessage(message)) {
         #ifdef doDebug
             Serial.println("Failed to send message, retrying...");
         #endif
     }
+ 
 }
 // Send temp to Android
 void BLEInterface::sendTemp(float basalRate, uint8_t duration) {
