@@ -44,12 +44,8 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
 }
 // Set a temp basal rate for a duration
 float PumpInterface::setTemp(float basalRate, uint8_t duration) {
-    if (*_tempActive) { // Check if temp is active - If it is, cancel it.
-        if (!hasTempExpired()) {
-            cancelTemp();
-        }
-        *_tempActive = false;
-    }
+    escToMain(); // Make sure pump is in main menu
+    cancelTemp();
     uint8_t step = 0;
     _tempBasal = basalRate;
     *_tempDuration = duration;
@@ -61,6 +57,10 @@ float PumpInterface::setTemp(float basalRate, uint8_t duration) {
         pressACT();
     }
     uint8_t durationSteps = duration / durationStepInterval;
+    if (durationSteps == 0) { // Attempted to set temp with duration 0 - Stop.
+        escToMain(); // Make sure pump is in main menu
+        return -2.0;
+    }
     for (uint8_t i = 0; i < durationSteps; i++) {
         pressUP();
     }
@@ -107,6 +107,7 @@ float PumpInterface::setTemp(float basalRate, uint8_t duration) {
 }
 // Cancel temp basal rate
 bool PumpInterface::cancelTemp() {
+    escToMain(); // Make sure pump is in main menu
     if (*_tempActive) {
         if (hasTempExpired()) { // Check if temp has expired (Temp time has run out).
             Serial.println("Temp has expired");
@@ -125,6 +126,7 @@ bool PumpInterface::cancelTemp() {
     }
 }
 // Deliver bolus
+/*peter23/10
 float PumpInterface::setBolus(float amount) {
     uint8_t step = 0;
     for (uint8_t i = 0; i < 2; i++) {
@@ -170,10 +172,12 @@ bool PumpInterface::startPump() {
         return false;
     }
 }
+//peter23/10
+*/ 
 // Debug hardware pinout
 bool PumpInterface::debug_hardware(char action) { // Debug function for testing hardware connectivity.
     switch (action) {
-        case 'b': pressBOL(); return true; break;
+        //case 'b': pressBOL(); return true; break;
         case 'a': pressACT(); return true; break;
         case 'e': pressESC(); return true; break;
         case 'u': pressUP(); return true; break;
@@ -185,6 +189,7 @@ bool PumpInterface::debug_hardware(char action) { // Debug function for testing 
 // Private functions
 //************************************************************************************
 // Press BOL on pump
+/*peter23/10
 void PumpInterface::pressBOL() {
     //delay(press_delay);
     digitalWrite(BOL, HIGH);
@@ -192,6 +197,8 @@ void PumpInterface::pressBOL() {
     digitalWrite(BOL, LOW);
     delay(press_delay);
 }
+//peter23/10
+*/
 // Press ACT on pump
 void PumpInterface::pressACT() {
     //delay(press_delay);
@@ -227,7 +234,7 @@ void PumpInterface::pressDOWN() {
 // Escape from basal menu to main menu
 void PumpInterface::escToMain() {
     delay(esc_time);
-    for (uint8_t i = 0; i < 2; i++) {
+    for (uint8_t i = 0; i < 4; i++) {
         pressESC();
     }
 }
