@@ -1,4 +1,4 @@
-//************************************************************************************
+//20191020***23/10peter *********************************************************************************
 // Librarys
 #include <Arduino.h>
 #include "NoSleepyTimer.h"
@@ -47,7 +47,7 @@ void setup() {
 //************************************************************************************
 // Main loop
 void loop() {
-
+  serialAction();
 }
 //************************************************************************************
 // New message callback for BLEInterface
@@ -92,6 +92,7 @@ void gotBolus(String command) {
     float setBolus = 0;
     // Cut the bolus value from the message string.
     float bolus = getFloatfromInsideStr(command, String(ble.bolusAPS) + "=", String(ble.endAPS));
+    /*
     if (bolusSet != bolus) { // Check if bolus is already delivered - Should always be false, prevents to bolus deliveries on same wake cycle.
         bolusSet = bolus;
         #ifdef doDebug
@@ -106,6 +107,7 @@ void gotBolus(String command) {
             Serial.println("Bolus already set.");
         #endif
     }
+    */
     ble.sendBolus(setBolus); // Echo the command back to AndroidAPS to confirm the bolus has been set.
 }
 // Temp command
@@ -238,6 +240,7 @@ float getFloatfromInsideStr(String inputString, String leadingString,
             Serial.print("Got Serial message: ");
             Serial.println(action);
             hardwareDebug(action);
+            /*
             if (action.indexOf("tempBasal") >= 0) {
                 Serial.println("Setting temp basal");
                 pump.setTemp(1,30);
@@ -245,6 +248,7 @@ float getFloatfromInsideStr(String inputString, String leadingString,
                 Serial.println("Canceling temp basal");
                 pump.cancelTemp();
             }
+            */
         }
     }
     // Hardware debug
