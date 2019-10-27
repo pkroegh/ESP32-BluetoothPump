@@ -29,11 +29,13 @@ To connect the ESP32 to the Medtronic pump, we prealed off the plastic cover tha
 
 * Pin 15 -> 1. AQV21 -> Bolus button
 * Pin 14 -> 2. AQV21 -> ACT button
-* Pin 32 -> 3. AQV21 -> Escape button
+* Pin 21 -> 3. AQV21 -> Escape button
 * Pin 27 -> 4. AQV21 -> Up button
 * Pin 33 -> 5. AQV21 -> Down button
           
 (This method of interfacing with the pump is not the best of ways, but functional nevertheless. We would love to know if you come up with a smarter way of interfacing with the pump).
+
+Note: Previous iterations have used GPIO 32 for the escape pin. For some reason pin 32 does not produce a signal when a digitalWrite is called on the board used for this project. 
 
 ## Modified AndroidAPS
 The [modified version of AndroidAPS](https://github.com/pkroegh/AndroidAPS-Bluetooth) , ment to be pared with the ESP32.

@@ -17,16 +17,16 @@
     #define min_to_ms 60000
 #endif
 
-#define defaultBOL 1
-#define defaultACT 2
-#define defaultESC 3
-#define defaultUP 4
-#define defualtDOWN 5
+#define defaultBOL 15
+#define defaultACT 14
+#define defaultESC 21
+#define defaultUP 27
+#define defualtDOWN 33
 
-#define press_time 200 // Time from press to release (Has to be 100 milliseconds)
+#define press_time 150 // Time from press to release (Has to be 100 milliseconds)
 #define press_delay 300 // Time between presses (Has to be 300 milliseconds)
 
-#define esc_time 200
+#define esc_time 300
 #define esc_delay 300
 
 #define min30Millis 1800000

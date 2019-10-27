@@ -41,13 +41,13 @@ void setup() {
     #endif
     // Start AndroidAPS communication
     ble.begin(doDebug); // Starts ble.
-    pump.begin(15,14,32,27,33); // Starts and sets pinout for pump buttons. BOL, ACT, ESC, UP, DOWN
+    pump.begin(15,14,21,27,33); // Starts and sets pinout for pump buttons. BOL, ACT, ESC, UP, DOWN
     // To change output pins to pump button relays, change in above line.
 }
 //************************************************************************************
 // Main loop
 void loop() {
-  serialAction();
+    //serialAction();
 }
 //************************************************************************************
 // New message callback for BLEInterface
@@ -233,6 +233,7 @@ float getFloatfromInsideStr(String inputString, String leadingString,
         Serial.print(duration);
         Serial.println(" min");
     }
+    /*
     // Debug pump hardware interface
     void serialAction() {
         if (Serial.available() > 0) {
@@ -240,7 +241,6 @@ float getFloatfromInsideStr(String inputString, String leadingString,
             Serial.print("Got Serial message: ");
             Serial.println(action);
             hardwareDebug(action);
-            /*
             if (action.indexOf("tempBasal") >= 0) {
                 Serial.println("Setting temp basal");
                 pump.setTemp(1,30);
@@ -248,7 +248,6 @@ float getFloatfromInsideStr(String inputString, String leadingString,
                 Serial.println("Canceling temp basal");
                 pump.cancelTemp();
             }
-            */
         }
     }
     // Hardware debug
@@ -266,4 +265,5 @@ float getFloatfromInsideStr(String inputString, String leadingString,
             }
         }
     }
+    */
 #endif

@@ -44,7 +44,6 @@ void PumpInterface::begin(uint8_t BOLpin, uint8_t ACTpin, uint8_t ESCpin,
 }
 // Set a temp basal rate for a duration
 float PumpInterface::setTemp(float basalRate, uint8_t duration) {
-    escToMain(); // Make sure pump is in main menu
     cancelTemp();
     uint8_t step = 0;
     _tempBasal = basalRate;
@@ -203,9 +202,9 @@ void PumpInterface::pressBOL() {
 void PumpInterface::pressACT() {
     //delay(press_delay);
     digitalWrite(ACT, HIGH);
-    delay(press_time);
+    delay(esc_time);
     digitalWrite(ACT, LOW);
-    delay(press_delay);
+    delay(esc_delay);
 }
 // Press ESC on pump
 void PumpInterface::pressESC() {
