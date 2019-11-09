@@ -17,8 +17,8 @@
     #define min_to_ms 60000
 #endif
 
-#define defaultBOL 15
-#define defaultACT 14
+#define defaultBOL 32
+#define defaultACT 13
 #define defaultESC 21
 #define defaultUP 27
 #define defualtDOWN 33

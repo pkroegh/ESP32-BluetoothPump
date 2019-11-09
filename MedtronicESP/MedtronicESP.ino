@@ -41,7 +41,7 @@ void setup() {
     #endif
     // Start AndroidAPS communication
     ble.begin(doDebug); // Starts ble.
-    pump.begin(15,14,21,27,33); // Starts and sets pinout for pump buttons. BOL, ACT, ESC, UP, DOWN
+    pump.begin(32,13,21,27,33); // Starts and sets pinout for pump buttons. BOL, ACT, ESC, UP, DOWN
     // To change output pins to pump button relays, change in above line.
 }
 //************************************************************************************
@@ -247,6 +247,9 @@ float getFloatfromInsideStr(String inputString, String leadingString,
             } else if (action.indexOf("cancelTemp") >= 0) {
                 Serial.println("Canceling temp basal");
                 pump.cancelTemp();
+            } else if (action.indexOf("sleep") >= 0) {
+                Serial.println("Testing sleep...");
+                sleepDebug();
             }
         }
     }
@@ -264,6 +267,12 @@ float getFloatfromInsideStr(String inputString, String leadingString,
                 Serial.println("Failed");
             }
         }
+    }
+
+    void sleepDebug() {
+        ble.end(); // Stop the ble communication.
+        esp_sleep_enable_timer_wakeup(0.1 * M_TO_uS_FACTOR); // Set the timer to wake the ESP after the sleep.
+        esp_deep_sleep_start(); // Sleep the ESP.
     }
     */
 #endif
